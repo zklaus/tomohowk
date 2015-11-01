@@ -95,15 +95,15 @@ def reconstruct_wigner(eta, beta, phix, Nq, Np):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("infilename", help="HDF5 file containing the quadrature data")
+    parser.add_argument("filename", help="HDF5 file containing the quadrature data")
     parser.add_argument("-f", "--force",
                         help="Overwrite previous reconstructions", action="store_true")
     parser.add_argument("--Nq", help="Number of grid points in q direction", type=int, default=11)
     parser.add_argument("--Np", help="Number of grid points in p direction", type=int, default=11)
     parser.add_argument("-b", "--beta", help="Beta reconstruction parameter", type=float, default=.2)
     parser.add_argument("-e", "--eta", help="Detection efficiency eta", type=float, default=.8)
-    parser.add_argument("-s", "--serial", help="Run program in serial. Default is parallel.",
-                        action="store_true")
+    parser.add_argument("-m", "--method", help="Select implementation",
+                        choices=["serial", "multiprocessing"], default="multiprocessing")
     return parser.parse_args()
 
 
@@ -123,29 +123,38 @@ def setup_reconstructions_group(h5, Nq, Np, force):
     return Q_ds, P_ds, W_ds
 
 
+def reconstruct_all_wigners_serial(args):
+    with h5py.File(args.filename, "r+") as h5:
+        Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
+        R = partial(reconstruct_wigner, args.eta, args.beta, Nq=args.Nq, Np=args.Np)
+        Nsteps = h5["Quadratures"].shape[0]
+        for i, (Q, P, W) in enumerate(itertools.imap(R, h5["Quadratures"][:])):
+            Q_ds[i,:,:] = Q
+            P_ds[i,:,:] = P
+            W_ds[i,:,:] = W
+            sys.stderr.write("\r{0:%}".format(float(i)/Nsteps))
+        sys.stderr.write("\n")
+
+
+def reconstruct_all_wigners_multiprocessing(args):
+    with h5py.File(args.filename, "r+") as h5:
+        Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
+        R = partial(reconstruct_wigner, args.eta, args.beta, Nq=args.Nq, Np=args.Np)
+        Nsteps = h5["Quadratures"].shape[0]
+        pool = Pool(4)
+        for i, (Q, P, W) in enumerate(pool.imap(R, h5["Quadratures"][:])):
+            Q_ds[i,:,:] = Q
+            P_ds[i,:,:] = P
+            W_ds[i,:,:] = W
+            sys.stderr.write("\r{0:%}".format(float(i)/Nsteps))
+        sys.stderr.write("\n")
 
 
 def main():
     args = parse_args()
-    h5 = h5py.File(args.infilename, "r+")
-    quadrature_ds = h5["Quadratures"]
-    Nsteps = quadrature_ds.shape[0]
-    Nq = args.Nq
-    Np = args.Np
-    Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, Nq, Np, args.force)
-    R = partial(reconstruct_wigner,
-                args.eta, args.beta, Nq=Nq, Np=Np)
-    if args.serial:
-        mapper = itertools.imap
-    else:
-        pool = Pool(4)
-        mapper = pool.imap
-    for i, (Q, P, W) in enumerate(mapper(R, quadrature_ds[:])):
-        Q_ds[i,:,:] = Q
-        P_ds[i,:,:] = P
-        W_ds[i,:,:] = W
-        sys.stderr.write("\r{0:%}".format(float(i)/Nsteps))
-    h5.close()
+    reconstruct = eval("reconstruct_all_wigners_"+args.method)
+    print "Method chosen:", args.method, reconstruct
+    reconstruct(args)
 
 
 if __name__ == "__main__":
