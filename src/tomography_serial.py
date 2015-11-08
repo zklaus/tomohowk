@@ -12,8 +12,7 @@ from tomography_K_scipy import K
 def reconstruct_wigner(eta, beta, phix, Nq, Np):
     L = len(phix)
     h = calc_h(L, beta, eta)
-    q_mean, p_mean, s_max = estimate_position_from_quadratures(phix)
-    q_mean, p_mean = refine_position_estimate(K, eta, h, phix, q_mean, p_mean, s_max)
+    q_mean, p_mean, s_max = estimate_position_from_quadratures(eta, phix)
     q, p, Q, P = build_mesh(q_mean, p_mean, s_max, Nq, Np)
     W = K(eta, h, Q, P, phix).sum(axis=0)/phix.shape[0]
     return Q, P, W.reshape(Q.shape)
