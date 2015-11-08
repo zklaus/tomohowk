@@ -36,9 +36,9 @@ def build_mesh(q_mean, p_mean, s_max, Nq, Np):
     q_max = q_mean + s_max
     p_min = p_mean - s_max
     p_max = p_mean + s_max
-    q = scipy.linspace(q_min, q_max, Nq)
-    p = scipy.linspace(p_min, p_max, Np)
-    Q, P = scipy.meshgrid(q, p)
+    q = scipy.linspace(q_min, q_max, Nq).astype(scipy.float32)
+    p = scipy.linspace(p_min, p_max, Np).astype(scipy.float32)
+    Q, P = [f.astype(scipy.float32) for f in scipy.meshgrid(q, p)]
     return q, p, Q, P
 
 
