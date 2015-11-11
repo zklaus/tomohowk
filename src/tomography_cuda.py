@@ -9,6 +9,7 @@ import pycuda.autoinit
 from pycuda.compiler import SourceModule
 import pycuda.driver as drv
 import scipy
+from scipy import exp, sinh, cosh
 import sys
 from tomography_tools import *
 
@@ -16,11 +17,17 @@ from tomography_tools import *
 RADON_KERNEL = """
 #include <math_constants.h>
 
+#define ORDER {}
+
 __constant__ float rsq4pi;
 __constant__ float sqeta;
 __constant__ float h;
 __constant__ float four_pi_gamma;
 __constant__ float y;
+__constant__ float n2[ORDER];
+__constant__ float pre_s1[ORDER];
+__constant__ float pre_s2[ORDER];
+__constant__ float pre_s3[ORDER];
 
 __global__ void K_l(float2 *phix,
                     float *Q, float *P, float *Kb) {{
@@ -33,12 +40,11 @@ __global__ void K_l(float2 *phix,
   float s1 = 0.;
   float s2 = 0.;
   float s3 = 0.;
-  for(int n=1; n<={}; n++) {{
-    float n2 = powf(n, 2.);
-    float pre = expf(-n2/4.)/(n2 + zy2);
-    s1 += pre;
-    s2 += pre*coshf(n*y);
-    s3 += pre*n*sinhf(n*y);
+  for(int n=0; n<ORDER; n++) {{
+    float denom = n2[n] + zy2;
+    s1 += pre_s1[n]/denom;
+    s2 += pre_s2[n]/denom;
+    s3 += pre_s3[n]/denom;
   }}
   k[threadIdx.y] = zy*__sinf(z)*s3;
   k[threadIdx.y] += zy2*(s1 - __cosf(z)*s2);
@@ -89,8 +95,17 @@ class CudaCalculator(object):
         drv.memcpy_htod(self.mod_K.get_global("h")[0], scipy.array([self.h], dtype=scipy.float32))
         drv.memcpy_htod(self.mod_K.get_global("four_pi_gamma")[0],
                         scipy.array([4.*pi*self.gamma], dtype=scipy.float32))
-        drv.memcpy_htod(self.mod_K.get_global("y")[0], scipy.array([sqrt(self.gamma)/self.h], dtype=scipy.float32))
-
+        y = sqrt(self.gamma)/self.h
+        drv.memcpy_htod(self.mod_K.get_global("y")[0], scipy.array([y], dtype=scipy.float32))
+        n = scipy.arange(1, order+1, dtype=scipy.float32)
+        n2 = n**2
+        ex = exp(-n2/4.)
+        pre_s2 = ex*cosh(n*y)
+        pre_s3 = ex*n*sinh(n*y)
+        drv.memcpy_htod(self.mod_K.get_global("n2")[0], n2)
+        drv.memcpy_htod(self.mod_K.get_global("pre_s1")[0], ex)
+        drv.memcpy_htod(self.mod_K.get_global("pre_s2")[0], pre_s2)
+        drv.memcpy_htod(self.mod_K.get_global("pre_s3")[0], pre_s3)
 
     def K(self, Q, P, phix):
         N_phix = phix.shape[0]
@@ -104,7 +119,6 @@ class CudaCalculator(object):
                    block=(1, 1024, 1), grid=(Nx, Ny), shared=1024*4)
         self.reduction_gpu(Kb, drv.Out(K), block=(1, Ny, 1), grid=(Nx, 1), shared=Ny*4)
         return K/self.L
-
 
     def reconstruct_wigner(self, phix, Nq, Np):
         q_mean, p_mean, s_max = estimate_position_from_quadratures(self.eta, phix)
