@@ -4,6 +4,7 @@
 import argparse
 import glob
 import h5py
+import logging
 import scipy
 import sys
 
@@ -22,7 +23,7 @@ def read_tabular_data(filename, dtype=scipy.float32):
 
 def read_information(basename):
     base = read_tabular_data(basename)
-    nscans = read_tabular_data(basename+"-nscans", int)[0,0]
+    no_scans = read_tabular_data(basename+"-nscans", int)[0,0]
     no_pulses_per_angle, no_angles = read_tabular_data(basename+"-pulses", int)[0]
     try:
         timestep_size, no_timesteps = read_tabular_data(basename+"-step", int)[0]
@@ -48,10 +49,19 @@ def read_information(basename):
     all_steps = steps.values()
     reference_steps = all_steps[0]
     for s in all_steps[1:]:
-        assert(s==reference_steps)
-    assert(reference_steps==range(no_timesteps))
-    no_scans = len(scans)
-    assert(scans == set(range(no_scans)))
+        if s!=reference_steps:
+            raise RuntimeError("Not all scans use the same number of steps. "
+                               "This does not fit into a table.")
+    if reference_steps!=range(no_timesteps):
+        logging.warn("The actually used steps are not those described in the -step file.")
+        no_timesteps = len(reference_steps)
+        if reference_steps != scipy.arange(no_timesteps):
+            raise RuntimeError("Timesteps are not consecutive. Aborting.")
+    if scans != set(range(no_scans)):
+        logging.warn("The actually used scans are not those described in the -nscans file.")
+        no_scans = len(scans)
+        if scans != set(range(no_scans)):
+            raise RuntimeError("Scans are not consecutive. Aborting.")
     shape = (no_scans, no_timesteps, no_angles, no_pulses_per_angle)
     return shape
 
@@ -81,7 +91,17 @@ def import_data(args, ds):
         print "Starting scan {} of {}:".format(scan, no_scans)
         for step in xrange(no_timesteps):
             fn = "{}-scan-{}-step-{}".format(args.basename, scan, step)
-            ds[scan, step, :, :] = read_tabular_data(fn)
+            data = read_tabular_data(fn)
+            if data.shape == ds.shape[2:]:
+                ds[scan, step, :, :] = data
+            else:
+                logging.error("Shape mismatch. Either number of angles or "
+                              "pulses per angle are inconsistent. "
+                              "Trying to pad with nans.")
+                N_a, N_p = data.shape
+                ds[scan, step, :N_a, :N_p] = data
+                ds[scan, step, N_a:, :N_p] = scipy.nan
+                ds[scan, step, :, N_p:] = scipy.nan
             sys.stderr.write("\r{0:3.2%}".format(float(step)/no_timesteps))
         sys.stderr.write("\r100.00%\n")
 
