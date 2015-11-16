@@ -81,7 +81,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("basename", help="Basename of quadrature data")
     parser.add_argument("-f", "--force",
-                        help="Overwrite previous reconstructions", action="store_true")
+                        help="overwrite previous reconstructions", action="store_true")
+    parser.add_argument("-v", "--vacuum", help="Filename of vacuum data; "
+                        "typically ends in -scan-0-step-0")
     parser.add_argument("-e", "--eta", help="Detection efficiency eta", type=float, default=.8)
     return parser.parse_args()
 
