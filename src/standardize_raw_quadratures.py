@@ -57,8 +57,13 @@ def center_on_cos(raw_quadratures):
     return quadratures, float(res.params["omega"]), float(res.params["phi0"])
 
 
+def vacuum_correct(quadratures, gamma_prime=sqrt(2.)):
+    return quadratures/gamma_prime
+
+
 def standardize_quadratures(raw_quadratures):
-    quadratures, omega, phi0 = center_on_cos(raw_quadratures)
+    centered_quadratures, omega, phi0 = center_on_cos(raw_quadratures)
+    quadratures = vacuum_correct(centered_quadratures)
     return quadratures
 
 
