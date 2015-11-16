@@ -22,9 +22,20 @@ def read_tabular_data(filename, dtype=scipy.float32):
 
 
 def read_information(basename):
-    base = read_tabular_data(basename)
-    no_scans = read_tabular_data(basename+"-nscans", int)[0,0]
-    no_pulses_per_angle, no_angles = read_tabular_data(basename+"-pulses", int)[0]
+    try:
+        base = read_tabular_data(basename)
+    except IOError:
+        logging.warn("Basefile missing.")
+    try:
+        no_scans = read_tabular_data(basename+"-nscans", int)[0,0]
+    except IOError:
+        logging.warn("-nscans file missing. Determining no_scans from data files.")
+        no_scans = 0
+    try:
+        no_pulses_per_angle, no_angles = read_tabular_data(basename+"-pulses", int)[0]
+    except IOError:
+        logging.warn("-pulses file missing. Determining no_angles and no_pulses from first data file.")
+        no_angles, no_pulses_per_angle = read_tabular_data(basename+"-scan-0-step-0").shape
     try:
         timestep_size, no_timesteps = read_tabular_data(basename+"-step", int)[0]
     except IOError:
