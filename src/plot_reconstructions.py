@@ -115,6 +115,7 @@ def main():
                                        vmin=W_min, vmax=W_max,
                                        cmap=cmap,
                                        shading=shading))
+    ax.set_aspect("equal")
     cb = fig.colorbar(quad.quad)
     cb.set_label("Quasiprobability Density")
     cb.solids.set_rasterized(True)
