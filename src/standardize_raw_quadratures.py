@@ -7,7 +7,7 @@ import h5py
 from lmfit import Model
 import logging
 import scipy
-from scipy import cos
+from scipy import cos, pi, sqrt
 import sys
 
 
@@ -45,11 +45,11 @@ def center_on_cos(raw_quadratures):
     model = Model(cosmod)
     model.set_param_hint("V0", value=scipy.average(mean))
     model.set_param_hint("A", value=(mean.max()-mean.min())/2.)
-    model.set_param_hint("omega", value=2.*scipy.pi/(raw_quadratures.shape[0]*.7))
+    model.set_param_hint("omega", value=2.*pi/(N_angles*.7))
     model.set_param_hint("phi0", value=0.)
     pars = model.make_params()
-    step = scipy.tile(scipy.arange(raw_quadratures.shape[0]), (raw_quadratures.shape[1],1)).T
-    res = model.fit(raw_quadratures.ravel(), step=step.ravel())
+    step = scipy.arange(N_angles)
+    res = model.fit(mean, step=step)
     l = scipy.arange(N_angles)
     mean_fit = res.eval(step=l)
     offset = mean-mean_fit
