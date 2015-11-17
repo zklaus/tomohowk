@@ -83,7 +83,7 @@ def parse_args():
     parser.add_argument("-f", "--force",
                         help="overwrite previous reconstructions", action="store_true")
     parser.add_argument("-v", "--vacuum", help="Filename of vacuum data; "
-                        "typically ends in -scan-0-step-0")
+                        "typically ends in -scan-0-step-0", required=True)
     parser.add_argument("-e", "--eta", help="Detection efficiency eta", type=float, default=.8)
     return parser.parse_args()
 
@@ -94,8 +94,9 @@ def setup_h5_file(args, shape):
     else:
         mode = "w-"
     h5 = h5py.File(args.basename+".h5", mode)
-    ds = h5.create_dataset("raw_quadratures", shape, compression="gzip", dtype="float32")
-    return h5, ds
+    ds_q = h5.create_dataset("raw_quadratures", shape, compression="gzip", dtype="float32")
+    ds_v = h5.create_dataset("vacuum_quadratures", shape[2:], compression="gzip", dtype="float32")
+    return h5, ds_q, ds_v
 
 
 def import_data(args, ds):
@@ -119,11 +120,29 @@ def import_data(args, ds):
         sys.stderr.write("\r100.00%\n")
 
 
+def import_vacuum(args, ds):
+    (no_angles, no_pulses_per_angle) = ds.shape
+    fn = args.vacuum
+    print "Importing vacuum data."
+    data = read_tabular_data(fn)
+    if data.shape == ds.shape:
+        ds[:, :] = data
+    else:
+        logging.error("Shape mismatch. Either number of angles or "
+                      "pulses per angle are inconsistent. "
+                      "Trying to pad with nans.")
+        N_a, N_p = data.shape
+        ds[:N_a, :N_p] = data
+        ds[N_a:, :N_p] = scipy.nan
+        ds[:, N_p:] = scipy.nan
+
+
 def main():
     args = parse_args()
     shape = read_information(args.basename)
-    h5, ds = setup_h5_file(args, shape)
-    import_data(args, ds)
+    h5, ds_q, ds_v = setup_h5_file(args, shape)
+    import_data(args, ds_q)
+    import_vacuum(args, ds_v)
 
 
 if __name__ == "__main__":

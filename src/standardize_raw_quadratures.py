@@ -7,7 +7,7 @@ import h5py
 from lmfit import Model
 import logging
 import scipy
-from scipy import cos, pi, sqrt
+from scipy import average, cos, pi, sqrt, std
 import sys
 
 
@@ -57,24 +57,26 @@ def center_on_cos(raw_quadratures):
     return quadratures, float(res.params["omega"]), float(res.params["phi0"])
 
 
-def vacuum_correct(quadratures, gamma_prime=sqrt(2.)):
+def vacuum_correct(quadratures, gamma_prime):
     return quadratures/gamma_prime
 
 
-def standardize_quadratures(raw_quadratures):
+def standardize_quadratures(raw_quadratures, gamma_prime):
     centered_quadratures, omega, phi0 = center_on_cos(raw_quadratures)
-    quadratures = vacuum_correct(centered_quadratures)
+    quadratures = vacuum_correct(centered_quadratures, gamma_prime)
     return quadratures
 
 
 def standardize_all_quadratures(args, h5, ds):
+    vac_ds = h5["vacuum_quadratures"]
+    gamma_prime = sqrt(2.)*average(std(vac_ds, axis=1))
     raw_ds = h5["raw_quadratures"]
     no_scans, no_steps = raw_ds.shape[:2]
     for i_scan in xrange(no_scans):
         sys.stderr.write("Starting scan {} of {}:\n".format(i_scan, no_scans))
         for i_step in xrange(no_steps):
             raw_quadratures = raw_ds[i_scan, i_step, :, :]
-            ds[i_scan, i_step, :, :] = standardize_quadratures(raw_quadratures)
+            ds[i_scan, i_step, :, :] = standardize_quadratures(raw_quadratures, gamma_prime)
             sys.stderr.write("\r{0:3.2%}".format(float(i_step)/no_steps))
         sys.stderr.write("\r100.00%\n")
 
