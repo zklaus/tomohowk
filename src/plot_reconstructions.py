@@ -88,7 +88,7 @@ def parse_args():
 def main():
     args = parse_args()
     h5 = h5py.File(args.infilename, "r")
-    rg = h5["Reconstructions"]
+    rg = h5["reconstructions"]
     Qds = rg["Q"]
     Pds = rg["P"]
     Wds = rg["W"]

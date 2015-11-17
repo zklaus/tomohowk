@@ -43,14 +43,14 @@ def build_mesh(q_mean, p_mean, s_max, Nq, Np):
 
 
 def setup_reconstructions_group(h5, Nq, Np, force):
-    if "Reconstructions" in h5.keys():
+    if "reconstructions" in h5.keys():
         if force:
             print "Old reconstructions found. Force active, deleting old reconstructions."
-            del h5["Reconstructions"]
+            del h5["reconstructions"]
         else:
             print "Old reconstructions found. If you want to overwrite them, use --force. Aborting."
             sys.exit(1)
-    reconstruction_group = h5.create_group("Reconstructions")
+    reconstruction_group = h5.create_group("reconstructions")
     Nsteps = h5["Quadratures"].shape[0]
     Q_ds = reconstruction_group.create_dataset("Q", (Nsteps, Nq, Np), chunks=(1, Nq, Np))
     P_ds = reconstruction_group.create_dataset("P", (Nsteps, Nq, Np), chunks=(1, Nq, Np))
