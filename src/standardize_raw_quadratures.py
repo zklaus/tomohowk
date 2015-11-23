@@ -6,8 +6,9 @@ import glob
 import h5py
 from lmfit import Model
 import logging
+from matplotlib import pyplot
 import scipy
-from scipy import average, cos, pi, sqrt, std
+from scipy import arange, average, cos, float32, pi, sqrt, std
 import sys
 
 
@@ -22,6 +23,7 @@ def parse_args():
 
 def setup_dataset(args, h5):
     shape = h5["raw_quadratures"].shape
+    no_scans, no_steps, no_angles, no_pulses = shape
     if "standardized_quadratures" in h5.keys():
         if args.force:
             print ("Old standardized quadratures found. "
@@ -31,8 +33,18 @@ def setup_dataset(args, h5):
             print ("Old standardized quadratures found. "
                    "If you want to overwrite them, use --force. Aborting.")
             sys.exit(1)
-    ds = h5.create_dataset("standardized_quadratures", shape, compression="gzip", dtype="float32")
-    return ds
+    ds_q = h5.create_dataset("standardized_quadratures", shape, compression="gzip", dtype="float32")
+    if "angles" in h5.keys():
+        if args.force:
+            print ("Old angles found. "
+                   "Force active, deleting old data.")
+            del h5["angles"]
+        else:
+            print ("Old angles found. "
+                   "If you want to overwrite them, use --force. Aborting.")
+            sys.exit(1)
+    ds_a = h5.create_dataset("angles", (no_scans, no_angles), compression="gzip", dtype="float32")
+    return ds_a, ds_q
 
 
 def cosmod(step, V0, A, omega, phi0):
@@ -62,30 +74,38 @@ def vacuum_correct(quadratures, gamma_prime):
 
 
 def standardize_quadratures(raw_quadratures, gamma_prime):
-    centered_quadratures, omega, phi0 = center_on_cos(raw_quadratures)
+    centered_quadratures, omega, phi_0 = center_on_cos(raw_quadratures)
     quadratures = vacuum_correct(centered_quadratures, gamma_prime)
-    return quadratures
+    return omega, phi_0, quadratures
 
 
-def standardize_all_quadratures(args, h5, ds):
+def standardize_all_quadratures(args, h5, ds_a, ds_q):
     vac_ds = h5["vacuum_quadratures"]
     gamma_prime = sqrt(2.)*average(std(vac_ds, axis=1))
     raw_ds = h5["raw_quadratures"]
-    no_scans, no_steps = raw_ds.shape[:2]
+    no_scans, no_steps, no_angles, no_pulses = raw_ds.shape
+    omegas = scipy.empty((no_steps,), dtype=float32)
+    phi_0s = scipy.empty((no_steps,), dtype=float32)
     for i_scan in xrange(no_scans):
         sys.stderr.write("Starting scan {} of {}:\n".format(i_scan, no_scans))
         for i_step in xrange(no_steps):
             raw_quadratures = raw_ds[i_scan, i_step, :, :]
-            ds[i_scan, i_step, :, :] = standardize_quadratures(raw_quadratures, gamma_prime)
+            omega, phi_0, quadratures = standardize_quadratures(raw_quadratures, gamma_prime)
+            omegas[i_step] = omega
+            phi_0s[i_step] = phi_0
+            ds_q[i_scan, i_step, :, :] = quadratures
             sys.stderr.write("\r{0:3.2%}".format(float(i_step)/no_steps))
         sys.stderr.write("\r100.00%\n")
+        omega = average(omegas)
+        angles = (arange(no_angles)*omega).astype(float32)
+        ds_a[i_scan] = angles
 
 
 def main():
     args = parse_args()
     h5 = h5py.File(args.filename, "r+")
-    ds = setup_dataset(args, h5)
-    standardize_all_quadratures(args, h5, ds)
+    ds_a, ds_q = setup_dataset(args, h5)
+    standardize_all_quadratures(args, h5, ds_a, ds_q)
 
 
 if __name__ == "__main__":
