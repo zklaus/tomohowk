@@ -1,11 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import h5py
 import scipy
 from scipy import sqrt, log, pi
 from scipy.interpolate import interp1d
-from scipy.optimize import minimize
+import sys
 
 
 def gamma(eta):
