@@ -52,7 +52,9 @@ def setup_reconstructions_group(h5, Nq, Np, force):
             sys.exit(1)
     reconstruction_group = h5.create_group("reconstructions")
     Nsteps = h5["Quadratures"].shape[0]
+    q_ds = reconstruction_group.create_dataset("q_mean", (Nsteps,))
+    p_ds = reconstruction_group.create_dataset("p_mean", (Nsteps,))
     Q_ds = reconstruction_group.create_dataset("Q", (Nsteps, Nq, Np), chunks=(1, Nq, Np))
     P_ds = reconstruction_group.create_dataset("P", (Nsteps, Nq, Np), chunks=(1, Nq, Np))
     W_ds = reconstruction_group.create_dataset("W", (Nsteps, Nq, Np), chunks=(1, Nq, Np))
-    return Q_ds, P_ds, W_ds
+    return q_ds, p_ds, Q_ds, P_ds, W_ds

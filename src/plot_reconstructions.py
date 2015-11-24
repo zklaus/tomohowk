@@ -89,6 +89,8 @@ def main():
     args = parse_args()
     h5 = h5py.File(args.infilename, "r")
     rg = h5["reconstructions"]
+    q_mean = rg["q_mean"][:]
+    p_mean = rg["p_mean"][:]
     Qds = rg["Q"]
     Pds = rg["P"]
     Wds = rg["W"]
@@ -116,6 +118,9 @@ def main():
                                        cmap=cmap,
                                        shading=shading))
     ax.set_aspect("equal")
+    ax.set_color_cycle([cm.copper(1.*i/(Nsteps-1)) for i in range(Nsteps-1)])
+    for i in range(Nsteps-1):
+        ax.plot(q_mean[i:i+2],p_mean[i:i+2], alpha=.8)
     cb = fig.colorbar(quad.quad)
     cb.set_label("Quasiprobability Density")
     cb.solids.set_rasterized(True)

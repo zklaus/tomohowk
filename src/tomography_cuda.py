@@ -123,18 +123,20 @@ class CudaCalculator(object):
     def reconstruct_wigner(self, phix, Nq, Np):
         q_mean, p_mean, s_max = estimate_position_from_quadratures(self.eta, phix)
         q, p, Q, P = build_mesh(q_mean, p_mean, s_max, Nq, Np)
-        W = self.K(Q.ravel(), P.ravel(), phix)#/phix.shape[0]
-        return Q, P, W.reshape(Q.shape)
+        W = self.K(Q.ravel(), P.ravel(), phix)
+        return q_mean, p_mean, Q, P, W.reshape(Q.shape)
 
 
 def reconstruct_all_wigners(args):
     with h5py.File(args.filename, "r+") as h5:
-        Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
+        q_ds, p_ds, Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
         Nsteps = h5["Quadratures"].shape[0]
         L = h5["Quadratures"].shape[1]
         calculator = CudaCalculator(args.eta, args.beta, L)
         R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
-        for i, (Q, P, W) in enumerate(itertools.imap(R, h5["Quadratures"][:].astype(scipy.float32))):
+        for i, (q, p, Q, P, W) in enumerate(itertools.imap(R, h5["Quadratures"][:].astype(scipy.float32))):
+            q_ds[i] = q
+            p_ds[i] = p
             Q_ds[i,:,:] = Q
             P_ds[i,:,:] = P
             W_ds[i,:,:] = W
