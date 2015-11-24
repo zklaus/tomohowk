@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import datetime
 from functools import partial
 import h5py
 import itertools
@@ -11,6 +12,7 @@ import pycuda.driver as drv
 import scipy
 from scipy import exp, sinh, cosh
 import sys
+import time
 from tomography_tools import *
 
 
@@ -134,12 +136,21 @@ def reconstruct_all_wigners(args):
         L = h5["Quadratures"].shape[1]
         calculator = CudaCalculator(args.eta, args.beta, L)
         R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
+        start = time.time()
         for i, (q, p, Q, P, W) in enumerate(itertools.imap(R, h5["Quadratures"][:].astype(scipy.float32))):
             q_ds[i] = q
             p_ds[i] = p
             Q_ds[i,:,:] = Q
             P_ds[i,:,:] = P
             W_ds[i,:,:] = W
-            sys.stderr.write("\r{0:.2%}".format(float(i)/Nsteps))
+            elapsed = time.time()-start
+            part = float(i)/Nsteps
+            if part>0:
+                eta = int(elapsed/part)
+            else:
+                eta = 0
+            sys.stderr.write("\r{0:7.2%} (Elapsed: {1}, ETA: {2})".format(part,
+                                                                          datetime.timedelta(seconds=int(elapsed)),
+                                                                          datetime.timedelta(seconds=eta)))
         sys.stderr.write("\n")
     drv.stop_profiler()
