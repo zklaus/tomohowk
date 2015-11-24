@@ -20,6 +20,8 @@ RADON_KERNEL = """
 #include <math_constants.h>
 
 #define ORDER {}
+#define NO_ANGLES {}
+#define NO_PULSES {}
 
 __constant__ float rsq4pi;
 __constant__ float sqeta;
@@ -30,13 +32,18 @@ __constant__ float n2[ORDER];
 __constant__ float pre_s1[ORDER];
 __constant__ float pre_s2[ORDER];
 __constant__ float pre_s3[ORDER];
+__constant__ float cos_phi[NO_ANGLES];
+__constant__ float sin_phi[NO_ANGLES];
 
-__global__ void K_l(float2 *phix,
+__global__ void K_l(float *quadratures,
                     float *Q, float *P, float *Kb) {{
   extern __shared__ float k[];
-  float phi = phix[blockIdx.y*blockDim.y+threadIdx.y].x;
-  float x = phix[blockIdx.y*blockDim.y+threadIdx.y].y/sqeta;
-  float z = (Q[blockIdx.x]*__cosf(phi) + P[blockIdx.x]*__sinf(phi) - x)/h;
+  uint quad_idx = blockIdx.y*blockDim.y+threadIdx.y;
+  uint phi_idx = (quad_idx/NO_PULSES)%NO_ANGLES;
+  uint q_idx = blockIdx.x;
+  uint p_idx = blockIdx.x;
+  float x = quadratures[quad_idx]/sqeta;
+  float z = (Q[q_idx]*cos_phi[phi_idx] + P[p_idx]*sin_phi[phi_idx] - x)/h;
   float zy = z/y;
   float zy2 = powf(zy, 2);
   float s1 = 0.;
@@ -82,8 +89,10 @@ __global__ void reduction(float *Kb, float *W) {{
 
 
 class CudaCalculator(object):
-    def __init__(self, eta, beta, L, order=5):
-        self.mod_K = SourceModule(RADON_KERNEL.format(order))
+    def __init__(self, eta, beta, L, angles, no_pulses, order=5):
+        self.angles = angles
+        no_angles = angles.shape[0]
+        self.mod_K = SourceModule(RADON_KERNEL.format(order, no_angles, no_pulses))
         self.K_gpu = self.mod_K.get_function("K_l")
         self.mod_reduction = SourceModule(REDUCTION_KERNEL)
         self.reduction_gpu = self.mod_reduction.get_function("reduction")
@@ -108,8 +117,11 @@ class CudaCalculator(object):
         drv.memcpy_htod(self.mod_K.get_global("pre_s1")[0], ex)
         drv.memcpy_htod(self.mod_K.get_global("pre_s2")[0], pre_s2)
         drv.memcpy_htod(self.mod_K.get_global("pre_s3")[0], pre_s3)
+        drv.memcpy_htod(self.mod_K.get_global("cos_phi")[0], cos(angles).astype(scipy.float32))
+        drv.memcpy_htod(self.mod_K.get_global("sin_phi")[0], sin(angles).astype(scipy.float32))
 
     def K(self, Q, P, phix):
+        quadratures = phix[:,1].copy()
         N_phix = phix.shape[0]
         Nx = Q.shape[0]
         Ny = int(floor(N_phix / 1024.))
@@ -117,7 +129,7 @@ class CudaCalculator(object):
         Kb = drv.mem_alloc(4*Ny*Nx)
         Q_gpu = drv.to_device(Q)
         P_gpu = drv.to_device(P)
-        self.K_gpu(drv.In(phix), Q_gpu, P_gpu, Kb,
+        self.K_gpu(drv.In(quadratures), Q_gpu, P_gpu, Kb,
                    block=(1, 1024, 1), grid=(Nx, Ny), shared=1024*4)
         self.reduction_gpu(Kb, drv.Out(K), block=(1, Ny, 1), grid=(Nx, 1), shared=Ny*4)
         return K/self.L
@@ -134,7 +146,8 @@ def reconstruct_all_wigners(args):
         q_ds, p_ds, Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
         Nsteps = h5["Quadratures"].shape[0]
         L = h5["Quadratures"].shape[1]
-        calculator = CudaCalculator(args.eta, args.beta, L)
+        angles = h5["Quadratures"][0,:,0].reshape(100, 800)[:,0].copy()
+        calculator = CudaCalculator(args.eta, args.beta, L, angles, order=5)
         R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
         start = time.time()
         for i, (q, p, Q, P, W) in enumerate(itertools.imap(R, h5["Quadratures"][:].astype(scipy.float32))):
