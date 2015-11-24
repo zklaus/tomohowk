@@ -10,10 +10,11 @@ import pycuda.autoinit
 from pycuda.compiler import SourceModule
 import pycuda.driver as drv
 import scipy
-from scipy import exp, sinh, cosh
+from scipy import exp, sinh, cosh, cos, sin, sqrt, pi
+from scipy.interpolate import interp1d
 import sys
 import time
-from tomography_tools import *
+from tomography_tools import build_mesh, calc_h, gamma, setup_reconstructions_group
 
 
 RADON_KERNEL = """
@@ -88,6 +89,18 @@ __global__ void reduction(float *Kb, float *W) {{
 """
 
 
+def estimate_position_from_quadratures(eta, angles, quadratures, N_phi=30, N_x=101):
+    X = quadratures.reshape(100, 800)/sqrt(eta)
+    phi_edges = scipy.linspace(0, 2.*scipy.pi, N_phi)
+    phi_centers = (phi_edges[:-1]+phi_edges[1:])/2.
+    phi_idx = scipy.digitize(angles, phi_edges)
+    xs = [X[phi_idx==n+1] for n in range(len(phi_centers))]
+    means = scipy.array([scipy.mean(x) for x in xs])
+    stds = scipy.array([scipy.std(x) for x in xs])
+    m = interp1d(phi_centers, means)
+    return -m(pi), m(pi/2.), stds.max()
+
+
 class CudaCalculator(object):
     def __init__(self, eta, beta, L, angles, no_pulses, order=5):
         self.angles = angles
@@ -135,7 +148,7 @@ class CudaCalculator(object):
         return K/self.L
 
     def reconstruct_wigner(self, phix, Nq, Np):
-        q_mean, p_mean, s_max = estimate_position_from_quadratures(self.eta, phix)
+        q_mean, p_mean, s_max = estimate_position_from_quadratures(self.eta, self.angles, phix[:,1])
         q, p, Q, P = build_mesh(q_mean, p_mean, s_max, Nq, Np)
         W = self.K(Q.ravel(), P.ravel(), phix)
         return q_mean, p_mean, Q, P, W.reshape(Q.shape)
