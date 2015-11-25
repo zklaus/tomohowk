@@ -53,35 +53,36 @@ def cosmod(step, V0, A, omega, phi0):
 
 def center_on_cos(raw_quadratures):
     mean = scipy.average(raw_quadratures, axis=1)
-    N_angles, N_pulses = raw_quadratures.shape
+    no_angles, no_pulses = raw_quadratures.shape
     model = Model(cosmod)
     model.set_param_hint("V0", value=scipy.average(mean))
     model.set_param_hint("A", value=(mean.max()-mean.min())/2.)
-    model.set_param_hint("omega", value=2.*pi/(N_angles*.7))
+    model.set_param_hint("omega", value=2.*pi/(no_angles*.7))
     model.set_param_hint("phi0", value=0.)
-    pars = model.make_params()
-    step = scipy.arange(N_angles)
+    model.make_params()
+    step = scipy.arange(no_angles)
     res = model.fit(mean, step=step)
-    l = scipy.arange(N_angles)
+    l = scipy.arange(no_angles)
     mean_fit = res.eval(step=l)
     offset = mean-mean_fit
-    quadratures = raw_quadratures - scipy.tile(offset, (N_pulses, 1)).T
-    return quadratures, float(res.params["omega"]), float(res.params["phi0"])
+    aligned_quadratures = raw_quadratures - scipy.tile(offset, (no_pulses, 1)).T
+    centered_quadratures = aligned_quadratures - float(res.params["V0"])
+    return centered_quadratures, float(res.params["omega"]), float(res.params["phi0"])
 
 
-def vacuum_correct(quadratures, gamma_prime):
+def vacuum_correct(quadratures, vacuum_quadratures):
+    gamma_prime = sqrt(2.)*average(std(vacuum_quadratures, axis=1))
     return quadratures/gamma_prime
 
 
-def standardize_quadratures(raw_quadratures, gamma_prime):
+def standardize_quadratures(raw_quadratures, vacuum_quadratures):
     centered_quadratures, omega, phi_0 = center_on_cos(raw_quadratures)
-    quadratures = vacuum_correct(centered_quadratures, gamma_prime)
+    quadratures = vacuum_correct(centered_quadratures, vacuum_quadratures)
     return omega, phi_0, quadratures
 
 
 def standardize_all_quadratures(args, h5, ds_a, ds_q):
-    vac_ds = h5["vacuum_quadratures"]
-    gamma_prime = sqrt(2.)*average(std(vac_ds, axis=1))
+    vacuum_quadratures = h5["vacuum_quadratures"][:]
     raw_ds = h5["raw_quadratures"]
     no_scans, no_steps, no_angles, no_pulses = raw_ds.shape
     omegas = scipy.empty((no_steps,), dtype=float32)
@@ -90,7 +91,7 @@ def standardize_all_quadratures(args, h5, ds_a, ds_q):
         sys.stderr.write("Starting scan {} of {}:\n".format(i_scan, no_scans))
         for i_step in xrange(no_steps):
             raw_quadratures = raw_ds[i_scan, i_step, :, :]
-            omega, phi_0, quadratures = standardize_quadratures(raw_quadratures, gamma_prime)
+            omega, phi_0, quadratures = standardize_quadratures(raw_quadratures, vacuum_quadratures)
             omegas[i_step] = omega
             phi_0s[i_step] = phi_0
             ds_q[i_scan, i_step, :, :] = quadratures

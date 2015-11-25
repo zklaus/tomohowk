@@ -120,7 +120,7 @@ def main():
     ax.set_aspect("equal")
     ax.set_color_cycle([cm.copper(1.*i/(Nsteps-1)) for i in range(Nsteps-1)])
     for i in range(Nsteps-1):
-        ax.plot(q_mean[i:i+2],p_mean[i:i+2], alpha=.8)
+        ax.plot(q_mean[i:i+2],p_mean[i:i+2], alpha=.6)
     cb = fig.colorbar(quad.quad)
     cb.set_label("Quasiprobability Density")
     cb.solids.set_rasterized(True)
