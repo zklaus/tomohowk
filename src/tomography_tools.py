@@ -30,7 +30,7 @@ def estimate_position_from_quadratures(eta, phix, N_phi=30, N_x=101):
 
 
 def build_mesh(q_mean, p_mean, s_max, Nq, Np):
-    s_max *= 2.
+    s_max *= 3.
     q_min = q_mean - s_max
     q_max = q_mean + s_max
     p_min = p_mean - s_max
@@ -50,7 +50,7 @@ def setup_reconstructions_group(h5, Nq, Np, force):
             print "Old reconstructions found. If you want to overwrite them, use --force. Aborting."
             sys.exit(1)
     reconstruction_group = h5.create_group("reconstructions")
-    Nsteps = h5["Quadratures"].shape[0]
+    Nsteps = h5["standardized_quadratures"].shape[1]
     q_ds = reconstruction_group.create_dataset("q_mean", (Nsteps,))
     p_ds = reconstruction_group.create_dataset("p_mean", (Nsteps,))
     Q_ds = reconstruction_group.create_dataset("Q", (Nsteps, Nq, Np), chunks=(1, Nq, Np))

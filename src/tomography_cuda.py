@@ -89,16 +89,15 @@ __global__ void reduction(float *Kb, float *W) {{
 """
 
 
-def estimate_position_from_quadratures(eta, angles, quadratures, N_phi=30, N_x=101):
-    X = quadratures.reshape(100, 800)/sqrt(eta)
-    phi_edges = scipy.linspace(0, 2.*scipy.pi, N_phi)
-    phi_centers = (phi_edges[:-1]+phi_edges[1:])/2.
-    phi_idx = scipy.digitize(angles, phi_edges)
-    xs = [X[phi_idx==n+1] for n in range(len(phi_centers))]
-    means = scipy.array([scipy.mean(x) for x in xs])
-    stds = scipy.array([scipy.std(x) for x in xs])
-    m = interp1d(phi_centers, means)
-    return -m(pi), m(pi/2.), stds.max()
+def estimate_position_from_quadratures(eta, angles, quadratures):
+    X = quadratures/sqrt(eta)
+    idx = interp1d(angles, scipy.arange(angles.shape[0]))
+    q_idx = int(idx(0.))
+    p_idx = int(idx(pi/2.))
+    q_mean = scipy.average(X[q_idx])
+    p_mean = scipy.average(X[p_idx])
+    s_max = scipy.std(X, axis=1).max()
+    return q_mean, p_mean, s_max
 
 
 class CudaCalculator(object):
@@ -133,11 +132,9 @@ class CudaCalculator(object):
         drv.memcpy_htod(self.mod_K.get_global("cos_phi")[0], cos(angles).astype(scipy.float32))
         drv.memcpy_htod(self.mod_K.get_global("sin_phi")[0], sin(angles).astype(scipy.float32))
 
-    def K(self, Q, P, phix):
-        quadratures = phix[:,1].copy()
-        N_phix = phix.shape[0]
+    def K(self, Q, P, quadratures):
         Nx = Q.shape[0]
-        Ny = int(floor(N_phix / 1024.))
+        Ny = int(floor(quadratures.size / 1024.))
         K = scipy.empty((Nx,), dtype=scipy.float32)
         Kb = drv.mem_alloc(4*Ny*Nx)
         Q_gpu = drv.to_device(Q)
@@ -147,31 +144,31 @@ class CudaCalculator(object):
         self.reduction_gpu(Kb, drv.Out(K), block=(1, Ny, 1), grid=(Nx, 1), shared=Ny*4)
         return K/self.L
 
-    def reconstruct_wigner(self, phix, Nq, Np):
-        q_mean, p_mean, s_max = estimate_position_from_quadratures(self.eta, self.angles, phix[:,1])
+    def reconstruct_wigner(self, quadratures, Nq, Np):
+        q_mean, p_mean, s_max = estimate_position_from_quadratures(self.eta, self.angles, quadratures)
         q, p, Q, P = build_mesh(q_mean, p_mean, s_max, Nq, Np)
-        W = self.K(Q.ravel(), P.ravel(), phix)
+        W = self.K(Q.ravel(), P.ravel(), quadratures)
         return q_mean, p_mean, Q, P, W.reshape(Q.shape)
 
 
 def reconstruct_all_wigners(args):
     with h5py.File(args.filename, "r+") as h5:
         q_ds, p_ds, Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
-        Nsteps = h5["Quadratures"].shape[0]
-        L = h5["Quadratures"].shape[1]
-        no_angles, no_pulses = 100, 800
-        angles = h5["Quadratures"][0,:,0].reshape(no_angles, no_pulses)[:,0].copy()
+        quadrature_ds = h5["standardized_quadratures"]
+        no_scans, no_steps, no_angles, no_pulses = quadrature_ds.shape
+        L = no_angles*no_pulses
+        angles = h5["angles"][0]
         calculator = CudaCalculator(args.eta, args.beta, L, angles, no_pulses, order=5)
         R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
         start = time.time()
-        for i, (q, p, Q, P, W) in enumerate(itertools.imap(R, h5["Quadratures"][:].astype(scipy.float32))):
+        for i, (q, p, Q, P, W) in enumerate(itertools.imap(R, quadrature_ds[0])):
             q_ds[i] = q
             p_ds[i] = p
             Q_ds[i,:,:] = Q
             P_ds[i,:,:] = P
             W_ds[i,:,:] = W
             elapsed = time.time()-start
-            part = float(i)/Nsteps
+            part = float(i)/no_steps
             if part>0:
                 eta = int(elapsed/part)
             else:
