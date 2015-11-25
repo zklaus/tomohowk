@@ -159,8 +159,9 @@ def reconstruct_all_wigners(args):
         q_ds, p_ds, Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
         Nsteps = h5["Quadratures"].shape[0]
         L = h5["Quadratures"].shape[1]
-        angles = h5["Quadratures"][0,:,0].reshape(100, 800)[:,0].copy()
-        calculator = CudaCalculator(args.eta, args.beta, L, angles, order=5)
+        no_angles, no_pulses = 100, 800
+        angles = h5["Quadratures"][0,:,0].reshape(no_angles, no_pulses)[:,0].copy()
+        calculator = CudaCalculator(args.eta, args.beta, L, angles, no_pulses, order=5)
         R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
         start = time.time()
         for i, (q, p, Q, P, W) in enumerate(itertools.imap(R, h5["Quadratures"][:].astype(scipy.float32))):
