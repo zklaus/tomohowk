@@ -2,11 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import glob
 import h5py
 from lmfit import Model
 import logging
-from matplotlib import pyplot
 import scipy
 from scipy import arange, average, cos, float32, pi, sqrt, std
 import sys
@@ -47,8 +45,8 @@ def setup_dataset(args, h5):
     return ds_a, ds_q
 
 
-def cosmod(step, V0, A, omega, phi0):
-    return V0 + A*cos(omega*step + phi0)
+def cosmod(x, V0, A, omega, phi0):
+    return V0 + A*cos(omega*x + phi0)
 
 
 def center_on_cos(raw_quadratures):
@@ -60,10 +58,9 @@ def center_on_cos(raw_quadratures):
     model.set_param_hint("omega", value=2.*pi/(no_angles*.7))
     model.set_param_hint("phi0", value=0.)
     model.make_params()
-    step = scipy.arange(no_angles)
-    res = model.fit(mean, step=step)
-    l = scipy.arange(no_angles)
-    mean_fit = res.eval(step=l)
+    steps = scipy.arange(no_angles)
+    res = model.fit(mean, x=steps)
+    mean_fit = res.eval(x=steps)
     offset = mean-mean_fit
     aligned_quadratures = raw_quadratures - scipy.tile(offset, (no_pulses, 1)).T
     centered_quadratures = aligned_quadratures - float(res.params["V0"])
