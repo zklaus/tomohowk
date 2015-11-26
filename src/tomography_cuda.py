@@ -91,11 +91,10 @@ __global__ void reduction(float *Kb, float *W) {{
 
 def estimate_position_from_quadratures(eta, angles, quadratures):
     X = quadratures/sqrt(eta)
-    idx = interp1d(angles, scipy.arange(angles.shape[0]))
-    q_idx = int(idx(0.))
-    p_idx = int(idx(pi/2.))
-    q_mean = scipy.average(X[q_idx])
-    p_mean = scipy.average(X[p_idx])
+    mean = scipy.average(X, axis=1)
+    avg = interp1d(angles, mean)
+    q_mean = avg(0.)
+    p_mean = avg(pi/2.)
     s_max = scipy.std(X, axis=1).max()
     return q_mean, p_mean, s_max
 
