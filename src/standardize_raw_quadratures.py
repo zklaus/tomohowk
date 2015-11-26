@@ -6,7 +6,8 @@ import h5py
 from lmfit import Model
 import logging
 import scipy
-from scipy import arange, average, cos, float32, pi, sqrt, std
+from scipy import arange, average, cos, float32, pi, polyfit, polyval, sqrt, std
+from scipy.signal import detrend
 import sys
 
 
@@ -72,8 +73,20 @@ def vacuum_correct(quadratures, vacuum_quadratures):
     return quadratures/gamma_prime
 
 
+def correct_intrastep_drift(quadratures, A=1.):
+    no_steps, no_pulses = quadratures.shape
+    pulses = scipy.arange(no_pulses)
+    for i in xrange(quadratures.shape[0]):
+        quads = quadratures[i]
+        mean = average(quads)
+        model = polyfit(pulses, quads, 5)
+        quadratures[i] = quads - polyval(model, pulses) + mean
+    return quadratures
+
+
 def standardize_quadratures(raw_quadratures, vacuum_quadratures):
-    centered_quadratures, omega, phi_0 = center_on_cos(raw_quadratures)
+    corrected_quadratures = correct_intrastep_drift(raw_quadratures)
+    centered_quadratures, omega, phi_0 = center_on_cos(corrected_quadratures)
     quadratures = vacuum_correct(centered_quadratures, vacuum_quadratures)
     return omega, phi_0, quadratures
 
