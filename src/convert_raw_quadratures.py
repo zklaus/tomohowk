@@ -141,8 +141,8 @@ def main():
     args = parse_args()
     shape = read_information(args.basename)
     h5, ds_q, ds_v = setup_h5_file(args, shape)
-    import_data(args, ds_q)
     import_vacuum(args, ds_v)
+    import_data(args, ds_q)
 
 
 if __name__ == "__main__":
