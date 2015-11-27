@@ -5,7 +5,9 @@ import argparse
 import h5py
 from itertools import imap
 import scipy
+from scipy import cos, exp, pi, sin, sqrt
 from scipy.interpolate import interp1d
+from scipy.optimize import curve_fit
 import sys
 
 
@@ -72,7 +74,7 @@ def parse_args():
 
 
 def load_reconstructions(h5):
-    rg = h5["Reconstructions"]
+    rg = h5["reconstructions"]
     Q_ds = rg["Q"]
     P_ds = rg["P"]
     W_ds = rg["W"]
@@ -80,14 +82,14 @@ def load_reconstructions(h5):
 
 
 def setup_gaussian_state_ds(h5, Nsteps, force):
-    if "Gaussians" in h5.keys():
+    if "gaussians" in h5.keys():
         if force:
             print "Old gaussian fits found. Force active, deleting old fits."
-            del h5["Gaussians"]
+            del h5["gaussians"]
         else:
             print "Old gaussian fits found. If you want to overwrite them, use --force. Aborting."
             sys.exit(1)
-    G_ds = h5.create_dataset("Gaussians", (Nsteps, 5))
+    G_ds = h5.create_dataset("gaussians", (Nsteps, 5))
     return G_ds
 
 
