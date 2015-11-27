@@ -66,7 +66,7 @@ def read_information(basename):
     if reference_steps!=range(no_timesteps):
         logging.warn("The actually used steps are not those described in the -step file.")
         no_timesteps = len(reference_steps)
-        if reference_steps != scipy.arange(no_timesteps):
+        if (reference_steps != scipy.arange(no_timesteps)).any():
             raise RuntimeError("Timesteps are not consecutive. Aborting.")
     if scans != set(range(no_scans)):
         logging.warn("The actually used scans are not those described in the -nscans file.")
