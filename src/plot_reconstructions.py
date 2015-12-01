@@ -81,6 +81,8 @@ def parse_args():
                         help="Visualization style. The raw option shows precisely the data,"
                         "polished gives a more pleasant rendering.", choices=["raw", "polished"],
                         default="raw")
+    parser.add_argument("-t", "--track", help="Plot track of central position in phase space.",
+                        action="store_true", default=False)
     args = parser.parse_args()
     return args
 
@@ -118,9 +120,10 @@ def main():
                                        cmap=cmap,
                                        shading=shading))
     ax.set_aspect("equal")
-    ax.set_color_cycle([cm.copper(1.*i/(Nsteps-1)) for i in range(Nsteps-1)])
-    for i in range(Nsteps-1):
-        ax.plot(q_mean[i:i+2],p_mean[i:i+2], alpha=.6)
+    if args.track:
+        ax.set_color_cycle([cm.copper(1.*i/(Nsteps-1)) for i in range(Nsteps-1)])
+        for i in range(Nsteps-1):
+            ax.plot(q_mean[i:i+2],p_mean[i:i+2], alpha=.3)
     cb = fig.colorbar(quad.quad)
     cb.set_label("Quasiprobability Density")
     cb.solids.set_rasterized(True)
