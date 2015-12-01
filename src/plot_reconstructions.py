@@ -7,7 +7,6 @@ from math import log10, ceil
 from matplotlib import cm, colors, pyplot
 from matplotlib.animation import FuncAnimation
 import numpy
-import sys
 
 import warnings
 #This filters a bug in matplotlib. Will be fixed in version 1.5.0.
@@ -101,7 +100,7 @@ def main():
     q_max = Qds[:,0,-1].max()
     p_min = Pds[:,0,0].min()
     p_max = Pds[:,-1,0].max()
-    W_min = numpy.percentile(Wds[:], 0.01)
+    W_min = numpy.percentile(Wds[:], 0.1)
     W_max = numpy.percentile(Wds[:], 99.9)
     midpoint = 1 - W_max/(W_max + abs(W_min))
     cmap = shifted_color_map(cm.coolwarm, midpoint=midpoint, name="shifted")
