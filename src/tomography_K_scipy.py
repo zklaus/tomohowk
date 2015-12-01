@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from scipy import (arange, dot, outer,
-                   exp, sin, cos, sinh, cosh, sqrt, log, pi)
+                   exp, sin, cos, sinh, cosh, sqrt, pi)
 from tomography_tools import gamma
 
 
