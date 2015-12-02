@@ -1,17 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import datetime
-from functools import partial
-import h5py
-import itertools
-from math import floor
 import scipy
 from scipy import exp, sinh, cosh, cos, sin, sqrt, pi
 from scipy.interpolate import interp1d
-import sys
-import time
-from tomography_tools import build_mesh, calc_h, gamma, setup_reconstructions_group
+from tomography_tools import build_mesh, calc_h, gamma
 from tomography_K_scipy import K
 
 def estimate_position_from_quadratures(eta, angles, quadratures):
@@ -56,35 +49,3 @@ class SerialCalculator(object):
         q, p, Q, P = build_mesh(q_mean, p_mean, s_max, Nq, Np)
         W = self.K(Q.ravel(), P.ravel(), quadratures)
         return q_mean, p_mean, Q, P, W.reshape(Q.shape)
-
-
-def reconstruct_all_wigners(args):
-    with h5py.File(args.filename, "r+") as h5:
-        q_ds, p_ds, Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
-        quadrature_ds = h5["standardized_quadratures"]
-        no_scans, no_steps, no_angles, no_pulses = quadrature_ds.shape
-        angles = h5["angles"][0]
-        max_angle = floor(angles.max()/pi)*pi
-        angles = angles[angles<max_angle]
-        no_angles = angles.shape[0]
-        L = no_angles*no_pulses
-        calculator = SerialCalculator(args.eta, args.beta, L, angles, no_pulses, order=5)
-        R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
-        start = time.time()
-        mapper = itertools.imap
-        for i, (q, p, Q, P, W) in enumerate(mapper(R, quadrature_ds[0,:,:no_angles,:])):
-            q_ds[i] = q
-            p_ds[i] = p
-            Q_ds[i,:,:] = Q
-            P_ds[i,:,:] = P
-            W_ds[i,:,:] = W
-            elapsed = time.time()-start
-            part = float(i)/no_steps
-            if part>0:
-                eta = int(elapsed/part)
-            else:
-                eta = 0
-            sys.stderr.write("\r{0:7.2%} (Elapsed: {1}, ETA: {2})".format(part,
-                                                                          datetime.timedelta(seconds=int(elapsed)),
-                                                                          datetime.timedelta(seconds=eta)))
-        sys.stderr.write("\n")

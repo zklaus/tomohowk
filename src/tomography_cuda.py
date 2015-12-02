@@ -1,20 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import datetime
-from functools import partial
-import h5py
-import itertools
-from math import ceil, floor
+from math import floor
 import pycuda.autoinit
 from pycuda.compiler import SourceModule
 import pycuda.driver as drv
 import scipy
 from scipy import exp, sinh, cosh, cos, sin, sqrt, pi
 from scipy.interpolate import interp1d
-import sys
-import time
-from tomography_tools import build_mesh, calc_h, gamma, setup_reconstructions_group
+from tomography_tools import build_mesh, calc_h, gamma
 
 
 RADON_KERNEL = """
@@ -148,35 +142,3 @@ class CudaCalculator(object):
         q, p, Q, P = build_mesh(q_mean, p_mean, s_max, Nq, Np)
         W = self.K(Q.ravel(), P.ravel(), quadratures)
         return q_mean, p_mean, Q, P, W.reshape(Q.shape)
-
-
-def reconstruct_all_wigners(args):
-    with h5py.File(args.filename, "r+") as h5:
-        q_ds, p_ds, Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
-        quadrature_ds = h5["standardized_quadratures"]
-        no_scans, no_steps, no_angles, no_pulses = quadrature_ds.shape
-        for i_scan in xrange(no_scans):
-            angles = h5["angles"][i_scan]
-            max_angle = floor(angles.max()/pi)*pi
-            angles = angles[angles<max_angle]
-            no_angles = angles.shape[0]
-            L = no_angles*no_pulses
-            calculator = CudaCalculator(args.eta, args.beta, L, angles, no_pulses, order=5)
-            R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
-            start = time.time()
-            for i, (q, p, Q, P, W) in enumerate(itertools.imap(R, quadrature_ds[i_scan,:,:no_angles,:])):
-                q_ds[i_scan, i] = q
-                p_ds[i_scan, i] = p
-                Q_ds[i_scan, i,:,:] = Q
-                P_ds[i_scan, i,:,:] = P
-                W_ds[i_scan, i,:,:] = W
-                elapsed = time.time()-start
-                part = float(i)/no_steps
-                if part>0:
-                    eta = int(elapsed/part)
-                else:
-                    eta = 0
-                sys.stderr.write("\r{0:7.2%} (Elapsed: {1}, ETA: {2})".format(part,
-                                                                              datetime.timedelta(seconds=int(elapsed)),
-                                                                              datetime.timedelta(seconds=eta)))
-            sys.stderr.write("\n")
