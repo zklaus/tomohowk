@@ -1,0 +1,70 @@
+#+TITLE: Homodyne Data Analysis
+* Introduction
+The analysis of homodyne data proceeds in stages.
+1. First the data is brought into a standard HDF5 format.
+   This can be done from the current ascii data by means of the =convert_raw_quadratures.py= program.
+2. Then the quadratures are standardized by the =standardize_raw_quadratures.py= program.
+3. Next the reconstruction of the Wigner functions is performed by the =tomography.py= program.
+4. Subsequent analysis takes place. Right now this can be:
+   + Plotting of the averaged Wigner functions by =plot_reconstructions.py=.
+   + Fitting of Gaussian functions by =fit_gaussians.py=.
+
+The general philosophy of these programs is to keep all data for one measurement together in one big HDF5 file.
+This may be either directly as datasets or, if several pieces of data are connected strongly, in a group containing datasets.
+Due to the different nature of different datasets their dimensions vary.
+There is, however, a common theme:
+Usually the order of dimension for quadrature data is as follows:
+1. Scans
+2. Steps, that is pump-probe time delay steps
+3. Angles, that is local oscillator steps
+4. Pulses.
+For phase space data we have:
+1. Scans
+2. Steps, that is pump-probe time delay steps
+3. Q
+4. P.
+Not all dimensions are present in all datasets.
+This is explained in detail with the individual datasets below.
+
+The stages of the analysis are implemented in separate programs.
+Every program can be controlled by command line arguments.
+Generally, -h or --help will give a short overview of the available command line arguments.
+One argument that is present in almost all programs is -f or --force.
+Without this switch programs don’t destroy present information.
+With this switch activated already present analysis will be overwritten.
+This is useful for development and to check the effect of different parameters, for example a different resolution in the reconstruction of the Wigner functions.
+
+In the following the analysis steps are briefly described, together with todo lists for the associated programs.
+
+* Conversion of Raw Quadratures
+Raw quadratures, present in text form, can be converted to the HDF5 format.
+The result will be a h5 file, the ingredients for this are the measured quadratures and a set of measured vacuum quadratures.
+Optionally some info files can be present, but since that information seems to be unreliable, the conversion program only uses it for consistency checks and only outputs warnings if inconsistencies are found.
+** Usage
+=convert_raw_quadratures.py [-h] [-f] -v VACUUM [-e ETA] basename=
+*** Command Line Arguments
++ =-h, --help=: Gives a short help
++ =-f, --force=: Normally the program will abort if the output file already exists. With =-f= the output file will be overwritten, DELETING earlier imports of the data with all analysis inside the file.
++ =-v VACUUM, --vacuum VACUUM=: Specifies the file name of the vacuum data. This is a single step of quadrature data, acquired under vacuum conditions. Necessary for the standardization, hence REQUIRED.
++ =-e ETA, --eta ETA=: The detector efficiency. Will be saved as an attribute in the quadrature data and used for the standardization and reconstruction.
++ =basename=: Base name of the quadrature data. This is the common prefix of all the text files containing this measurement. Also determines the name of the output file.
+*** Input
+The input consists in the text files making up the measurement.
+The bulk of it is a number of files with names of the form =<basename>-scan-<i>-step-<j>=.
+Here =i= is the number of the scan and =j= is the number of the step in the scan.
+Both are expected to be consecutive and to start from 0.
+Furthermore, all scans should have the same number of steps.
+One file contains the quadratures for all angles of the scan and step specified in its name.
+Every line in the file corresponds to one angle;
+every column to one pulse.
+The columns are separated by semicolons and given as floating point numbers with comma as decimal separator.
+
+The second mandatory input is the vacuum measurement.
+It is given as a file of the same format;
+the name must be specified using the -v argument (see above).
+For the vacuum measurement the scan and step information from the file name are ignored.
+*** Output
+The output takes the form of a single HDF5 file that is named =basename.h5=.
+It contains two datasets:
++ =raw_quadratures= with dimensions (scan, step, angle, pulse) and
++ =vacuum_quadratures= with dimensions (angle, pulse).
