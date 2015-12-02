@@ -155,28 +155,28 @@ def reconstruct_all_wigners(args):
         q_ds, p_ds, Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
         quadrature_ds = h5["standardized_quadratures"]
         no_scans, no_steps, no_angles, no_pulses = quadrature_ds.shape
-        angles = h5["angles"][0]
-        max_angle = floor(angles.max()/pi)*pi
-        angles = angles[angles<max_angle]
-        no_angles = angles.shape[0]
-        L = no_angles*no_pulses
-        calculator = CudaCalculator(args.eta, args.beta, L, angles, no_pulses, order=5)
-        R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
-        start = time.time()
-        for i, (q, p, Q, P, W) in enumerate(itertools.imap(R, quadrature_ds[0,:,:no_angles,:])):
-            q_ds[i] = q
-            p_ds[i] = p
-            Q_ds[i,:,:] = Q
-            P_ds[i,:,:] = P
-            W_ds[i,:,:] = W
-            elapsed = time.time()-start
-            part = float(i)/no_steps
-            if part>0:
-                eta = int(elapsed/part)
-            else:
-                eta = 0
-            sys.stderr.write("\r{0:7.2%} (Elapsed: {1}, ETA: {2})".format(part,
-                                                                          datetime.timedelta(seconds=int(elapsed)),
-                                                                          datetime.timedelta(seconds=eta)))
-        sys.stderr.write("\n")
-    drv.stop_profiler()
+        for i_scan in xrange(no_scans):
+            angles = h5["angles"][i_scan]
+            max_angle = floor(angles.max()/pi)*pi
+            angles = angles[angles<max_angle]
+            no_angles = angles.shape[0]
+            L = no_angles*no_pulses
+            calculator = CudaCalculator(args.eta, args.beta, L, angles, no_pulses, order=5)
+            R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
+            start = time.time()
+            for i, (q, p, Q, P, W) in enumerate(itertools.imap(R, quadrature_ds[i_scan,:,:no_angles,:])):
+                q_ds[i_scan, i] = q
+                p_ds[i_scan, i] = p
+                Q_ds[i_scan, i,:,:] = Q
+                P_ds[i_scan, i,:,:] = P
+                W_ds[i_scan, i,:,:] = W
+                elapsed = time.time()-start
+                part = float(i)/no_steps
+                if part>0:
+                    eta = int(elapsed/part)
+                else:
+                    eta = 0
+                sys.stderr.write("\r{0:7.2%} (Elapsed: {1}, ETA: {2})".format(part,
+                                                                              datetime.timedelta(seconds=int(elapsed)),
+                                                                              datetime.timedelta(seconds=eta)))
+            sys.stderr.write("\n")

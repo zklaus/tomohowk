@@ -50,10 +50,11 @@ def setup_reconstructions_group(h5, Nq, Np, force):
             print "Old reconstructions found. If you want to overwrite them, use --force. Aborting."
             sys.exit(1)
     reconstruction_group = h5.create_group("reconstructions")
-    Nsteps = h5["standardized_quadratures"].shape[1]
-    q_ds = reconstruction_group.create_dataset("q_mean", (Nsteps,))
-    p_ds = reconstruction_group.create_dataset("p_mean", (Nsteps,))
-    Q_ds = reconstruction_group.create_dataset("Q", (Nsteps, Nq, Np), chunks=(1, Nq, Np))
-    P_ds = reconstruction_group.create_dataset("P", (Nsteps, Nq, Np), chunks=(1, Nq, Np))
-    W_ds = reconstruction_group.create_dataset("W", (Nsteps, Nq, Np), chunks=(1, Nq, Np))
+    no_scans = h5["standardized_quadratures"].shape[0]
+    no_steps = h5["standardized_quadratures"].shape[1]
+    q_ds = reconstruction_group.create_dataset("q_mean", (no_scans, no_steps,))
+    p_ds = reconstruction_group.create_dataset("p_mean", (no_scans, no_steps,))
+    Q_ds = reconstruction_group.create_dataset("Q", (no_scans, no_steps, Nq, Np), chunks=(1, no_steps, Nq, Np))
+    P_ds = reconstruction_group.create_dataset("P", (no_scans, no_steps, Nq, Np), chunks=(1, no_steps, Nq, Np))
+    W_ds = reconstruction_group.create_dataset("W", (no_scans, no_steps, Nq, Np), chunks=(1, no_steps, Nq, Np))
     return q_ds, p_ds, Q_ds, P_ds, W_ds
