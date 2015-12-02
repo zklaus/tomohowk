@@ -90,11 +90,11 @@ def main():
     args = parse_args()
     h5 = h5py.File(args.infilename, "r")
     rg = h5["reconstructions"]
-    q_mean = rg["q_mean"][:]
-    p_mean = rg["p_mean"][:]
-    Qds = rg["Q"]
-    Pds = rg["P"]
-    Wds = rg["W"]
+    q_mean = numpy.average(rg["q_mean"], axis=0)
+    p_mean = numpy.average(rg["p_mean"], axis=0)
+    Qds = numpy.average(rg["Q"], axis=0)
+    Pds = numpy.average(rg["P"], axis=0)
+    Wds = numpy.average(rg["W"], axis=0)
     Nsteps = Qds.shape[0]
     q_min = Qds[:,0,0].min()
     q_max = Qds[:,0,-1].max()
