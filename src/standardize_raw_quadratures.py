@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+from argparse_tools import parse_range
 import h5py
 from lmfit import Model
 import logging
@@ -17,6 +18,7 @@ def parse_args():
     parser.add_argument("-f", "--force",
                         help="Overwrite previous reconstructions", action="store_true")
     parser.add_argument("-e", "--eta", help="Detection efficiency eta", type=float, default=.8)
+    parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range)
     return parser.parse_args()
 
 
@@ -103,9 +105,14 @@ def standardize_all_quadratures(args, h5):
     vacuum_quadratures = h5["vacuum_quadratures"][:]
     raw_ds = h5["raw_quadratures"]
     no_scans, no_steps, no_angles, no_pulses = raw_ds.shape
+    if args.scans=="all":
+        scans = xrange(no_scans)
+    else:
+        scans = args.scans
+        no_scans = len(scans)
     omegas = scipy.empty((no_steps,), dtype=float32)
-    for i_scan in xrange(no_scans):
-        sys.stderr.write("Starting scan {} of {}:\n".format(i_scan, no_scans))
+    for scan_no, i_scan in enumerate(scans, 1):
+        sys.stderr.write("Starting scan {}, {} of {}:\n".format(i_scan, scan_no, no_scans))
         raw_quadratures = raw_ds[i_scan, 0, :, :]
         omega, phi_0, quadratures = standardize_quadratures(raw_quadratures, vacuum_quadratures)
         omegas[0] = omega

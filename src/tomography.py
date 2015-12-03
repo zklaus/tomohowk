@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+from argparse_tools import parse_range
 from datetime import timedelta
 from functools import partial
 import h5py
@@ -24,6 +25,7 @@ def parse_args():
     parser.add_argument("-e", "--eta", help="Detection efficiency eta", type=float, default=.8)
     parser.add_argument("-m", "--method", help="Select implementation",
                         choices=["cuda", "multiprocessing", "serial"], default="multiprocessing")
+    parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range)
     return parser.parse_args()
 
 
@@ -32,7 +34,13 @@ def reconstruct_all_wigners(args, Calculator):
         q_ds, p_ds, Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
         quadrature_ds = h5["standardized_quadratures"]
         no_scans, no_steps, no_angles, no_pulses = quadrature_ds.shape
-        for i_scan in xrange(no_scans):
+        if args.scans=="all":
+            scans = xrange(no_scans)
+        else:
+            scans = args.scans
+            no_scans = len(scans)
+        for scan_no, i_scan in enumerate(scans, 1):
+            sys.stderr.write("Starting scan {}, {} of {}:\n".format(i_scan, scan_no, no_scans))
             angles = h5["angles"][i_scan]
             max_angle = floor(angles.max()/pi)*pi
             angles = angles[angles<max_angle]
