@@ -23,6 +23,8 @@ def parse_args():
     parser.add_argument("--Np", help="Number of grid points in p direction", type=int, default=11)
     parser.add_argument("-b", "--beta", help="Beta reconstruction parameter", type=float, default=.2)
     parser.add_argument("-e", "--eta", help="Detection efficiency eta", type=float, default=.8)
+    parser.add_argument("-a", "--approximation-order", help="Order of the approximation in the "
+                        "series expansion for the error function", type=int, default=6)
     parser.add_argument("-m", "--method", help="Select implementation",
                         choices=["cuda", "multiprocessing", "serial"], default="multiprocessing")
     parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range, default="all")
@@ -46,7 +48,8 @@ def reconstruct_all_wigners(args, Calculator):
             angles = angles[angles<max_angle]
             no_angles = angles.shape[0]
             L = no_angles*no_pulses
-            calculator = Calculator(args.eta, args.beta, L, angles, no_pulses, order=5)
+            calculator = Calculator(args.eta, args.beta, L, angles, no_pulses,
+                                    order=args.approximation_order)
             R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
             start = time.time()
             for i, (q, p, Q, P, W) in enumerate(itertools.imap(R, quadrature_ds[i_scan,:,:no_angles,:])):
