@@ -25,7 +25,7 @@ def parse_args():
     parser.add_argument("-e", "--eta", help="Detection efficiency eta", type=float, default=.8)
     parser.add_argument("-m", "--method", help="Select implementation",
                         choices=["cuda", "multiprocessing", "serial"], default="multiprocessing")
-    parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range)
+    parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range, default="all")
     return parser.parse_args()
 
 

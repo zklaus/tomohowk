@@ -85,7 +85,7 @@ def parse_args():
                         action="store_true", default=False)
     parser.add_argument("-s", "--scans", help="Select scans to treat. "
                         "All data, including coordinates, will be averaged over all specified scans.",
-                        type=parse_range)
+                        type=parse_range, required=True)
     args = parser.parse_args()
     return args
 

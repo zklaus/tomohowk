@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument("-f", "--force",
                         help="Overwrite previous reconstructions", action="store_true")
     parser.add_argument("-e", "--eta", help="Detection efficiency eta", type=float, default=.8)
-    parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range)
+    parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range, default="all")
     return parser.parse_args()
 
 
