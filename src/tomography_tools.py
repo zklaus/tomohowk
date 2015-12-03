@@ -44,8 +44,13 @@ def build_mesh(q_mean, p_mean, s_max, Nq, Np):
 def setup_reconstructions_group(h5, Nq, Np, force):
     if "reconstructions" in h5.keys():
         if force:
-            print "Old reconstructions found. Force active, deleting old reconstructions."
-            del h5["reconstructions"]
+            print "Old reconstructions found. Checking for dimensional compatibility."
+            old_group = h5["reconstructions"]
+            if (Nq, Np) == old_group["Q"].shape[2:]:
+                print ("Old reconstructions are dimensionally compatible.\n"
+                       "Overwriting selected scans.")
+                return (old_group["q_mean"], old_group["p_mean"],
+                        old_group["Q"], old_group["P"], old_group["W"])
         else:
             print "Old reconstructions found. If you want to overwrite them, use --force. Aborting."
             sys.exit(1)

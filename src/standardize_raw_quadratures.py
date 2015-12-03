@@ -8,7 +8,6 @@ from lmfit import Model
 import logging
 import scipy
 from scipy import arange, average, cos, float32, pi, polyfit, polyval, sqrt, std
-from scipy.signal import detrend
 import sys
 
 
@@ -25,8 +24,8 @@ def parse_args():
 def create_dataset(args, h5, name, shape):
     if name in h5.keys():
         if args.force:
-            print ("Old {} found. Force active, deleting old data.".format(name))
-            del h5[name]
+            print ("Old {} found. Force active, overwriting old data.".format(name))
+            return h5[name]
         else:
             print ("Old {} found. "
                    "If you want to overwrite them, use --force. Aborting.".format(name))
