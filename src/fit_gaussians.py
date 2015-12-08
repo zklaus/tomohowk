@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+from argparse_tools import parse_range
 import h5py
 from itertools import imap
 import scipy
@@ -69,6 +70,7 @@ def parse_args():
     parser.add_argument("infilename", help="HDF5 file containing reconstruction data")
     parser.add_argument("-f", "--force",
                         help="Overwrite previous gaussian fits", action="store_true")
+    parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range, default="all")
     args = parser.parse_args()
     return args
 
@@ -81,7 +83,7 @@ def load_reconstructions(h5):
     return Q_ds, P_ds, W_ds
 
 
-def setup_gaussian_state_ds(h5, Nsteps, force):
+def setup_gaussian_state_ds(h5, no_scans, no_steps, force):
     if "gaussians" in h5.keys():
         if force:
             print "Old gaussian fits found. Force active, deleting old fits."
@@ -89,7 +91,7 @@ def setup_gaussian_state_ds(h5, Nsteps, force):
         else:
             print "Old gaussian fits found. If you want to overwrite them, use --force. Aborting."
             sys.exit(1)
-    G_ds = h5.create_dataset("gaussians", (Nsteps, 5))
+    G_ds = h5.create_dataset("gaussians", (no_scans, no_steps, 5))
     return G_ds
 
 
@@ -97,12 +99,20 @@ def main():
     args = parse_args()
     h5 = h5py.File(args.infilename, "r+")
     Q_ds, P_ds, W_ds = load_reconstructions(h5)
-    Nsteps = W_ds.shape[0]
-    G_ds = setup_gaussian_state_ds(h5, Nsteps, args.force)
-    for i, state in enumerate(imap(fit_gaussian_state, Q_ds, P_ds, W_ds)):
-        G_ds[i] = state
-        sys.stderr.write('\rdone {0:.2%}'.format(float(i)/Nsteps))
-    print
+    no_scans, no_steps, no_q, no_p = Q_ds.shape
+    G_ds = setup_gaussian_state_ds(h5, no_scans, no_steps, args.force)
+    if args.scans=="all":
+        scans = range(no_scans)
+    else:
+        scans = args.scans
+        no_scans = len(scans)
+    for scan_no, i_scan in enumerate(scans, 1):
+        sys.stderr.write("Starting scan {}, {} of {}:\n".format(i_scan, scan_no, no_scans))
+        for i_step, state in enumerate(imap(fit_gaussian_state,
+                                            Q_ds[i_scan], P_ds[i_scan], W_ds[i_scan])):
+            G_ds[i_scan, i_step] = state
+            sys.stderr.write('\r{0:7.2%}'.format(float(i_step)/no_steps))
+        sys.stderr.write("\r100.00%\n")
 
 
 if __name__ == "__main__":
