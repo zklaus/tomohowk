@@ -79,12 +79,14 @@ def read_information(basename):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("basename", help="Basename of quadrature data")
+    parser.add_argument("basename", help="basename of quadrature data")
     parser.add_argument("-f", "--force",
-                        help="overwrite previous reconstructions", action="store_true")
-    parser.add_argument("-v", "--vacuum", help="Filename of vacuum data; "
+                        help="overwrite previous reconstructions (default: %(default)s)",
+                        action="store_true")
+    parser.add_argument("-v", "--vacuum", help="filename of vacuum data; "
                         "typically ends in -scan-0-step-0", required=True)
-    parser.add_argument("-e", "--eta", help="Detection efficiency eta", type=float, default=.8)
+    parser.add_argument("-e", "--eta", help="detection efficiency eta (default: %(default).2f)",
+                        type=float, default=.8)
     return parser.parse_args()
 
 

@@ -76,22 +76,27 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("infilename", help="HDF5 file containing the reconstructions")
     parser.add_argument("-o", "--output",
-                        help="Output basename for movie. The file will be <name>.mp4")
+                        help="output basename for movie. The file will be <name>.mp4, "
+                        "along with <name>_thumb.pdf thumbnail of first frame.")
     parser.add_argument("-v", "--visualization",
-                        help="Visualization style. The raw option shows precisely the data,"
-                        "polished gives a more pleasant rendering.", choices=["raw", "polished"],
+                        help="visualization style. The raw option shows precisely the data,"
+                        "polished gives a more pleasant rendering. (default: %(default)s)",
+                        choices=["raw", "polished"],
                         default="raw")
-    parser.add_argument("-t", "--track", help="Plot track of central position in phase space.",
+    parser.add_argument("-t", "--track",
+                        help="Plot track of central position in phase space. (default: %(default)s)",
                         action="store_true", default=False)
     parser.add_argument("-s", "--scans", help="Select scans to treat. "
                         "All data, including coordinates, will be averaged over all specified scans.",
                         type=parse_range, required=True)
     parser.add_argument("--vmin", help="Sets minimal value for colorcode. "
                         "Can be either an absolute value, or a percentage. "
-                        "If the latter, it specifies the percentile of occuring values to ignore.", default=".1%")
+                        "If the latter, it specifies the percentile of occuring values to ignore. "
+                        "(default: %(default)s)", default=".1%")
     parser.add_argument("--vmax", help="Sets maximal value for colorcode. "
                         "Can be either an absolute value, or a percentage. "
-                        "If the latter, it specifies the percentile of occuring values to ignore.", default=".1%")
+                        "If the latter, it specifies the percentile of occuring values to ignore. "
+                        "(default: %(default)s)", default=".1%")
     args = parser.parse_args()
     return args
 

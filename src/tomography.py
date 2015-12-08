@@ -18,16 +18,28 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("filename", help="HDF5 file containing the quadrature data")
     parser.add_argument("-f", "--force",
-                        help="Overwrite previous reconstructions", action="store_true")
-    parser.add_argument("--Nq", help="Number of grid points in q direction", type=int, default=11)
-    parser.add_argument("--Np", help="Number of grid points in p direction", type=int, default=11)
-    parser.add_argument("-b", "--beta", help="Beta reconstruction parameter", type=float, default=.2)
-    parser.add_argument("-e", "--eta", help="Detection efficiency eta", type=float, default=.8)
-    parser.add_argument("-a", "--approximation-order", help="Order of the approximation in the "
-                        "series expansion for the error function", type=int, default=6)
-    parser.add_argument("-m", "--method", help="Select implementation",
+                        help="Overwrite previous reconstructions (default: %(default)s)",
+                        action="store_true")
+    parser.add_argument("--Nq",
+                        help="Number of grid points in q direction (default: %(default)u)",
+                        type=int, default=11)
+    parser.add_argument("--Np", help="Number of grid points in p direction (default: %(default)u)",
+                        type=int, default=11)
+    parser.add_argument("-b", "--beta",
+                        help="Beta reconstruction parameter (default: %(default).2f)",
+                        type=float, default=.2)
+    parser.add_argument("-e", "--eta", help="Detection efficiency eta (default: %(default).2f)",
+                        type=float, default=.8)
+    parser.add_argument("-a", "--approximation-order",
+                        help="Order of the approximation in the "
+                        "series expansion for the error function (default: %(default)u)",
+                        type=int, default=6)
+    parser.add_argument("-m", "--method",
+                        help="Select implementation (default: %(default)s)",
                         choices=["cuda", "multiprocessing", "serial"], default="multiprocessing")
-    parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range, default="all")
+    parser.add_argument("-s", "--scans",
+                        help="Select scans to treat (default: %(default)s)",
+                        type=parse_range, default="all")
     return parser.parse_args()
 
 

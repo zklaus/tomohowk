@@ -67,10 +67,14 @@ def fit_gaussian_state(Q, P, W):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("infilename", help="HDF5 file containing reconstruction data")
+    parser.add_argument("infilename",
+                        help="HDF5 file containing reconstruction data")
     parser.add_argument("-f", "--force",
-                        help="Overwrite previous gaussian fits", action="store_true")
-    parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range, default="all")
+                        help="overwrite previous gaussian fits (default: %(default)s)",
+                        action="store_true")
+    parser.add_argument("-s", "--scans",
+                        help="select scans to treat (default: %(default)s)",
+                        type=parse_range, default="all")
     args = parser.parse_args()
     return args
 
