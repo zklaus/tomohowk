@@ -97,6 +97,7 @@ def setup_h5_file(args, shape):
         mode = "w-"
     h5 = h5py.File(args.basename+".h5", mode)
     ds_q = h5.create_dataset("raw_quadratures", shape, compression="gzip", dtype="float32")
+    ds_q.attrs.create("eta", args.eta, dtype=scipy.float32)
     ds_v = h5.create_dataset("vacuum_quadratures", shape[2:], compression="gzip", dtype="float32")
     return h5, ds_q, ds_v
 
