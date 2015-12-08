@@ -105,7 +105,7 @@ def standardize_all_quadratures(args, h5):
     raw_ds = h5["raw_quadratures"]
     no_scans, no_steps, no_angles, no_pulses = raw_ds.shape
     if args.scans=="all":
-        scans = xrange(no_scans)
+        scans = range(no_scans)
     else:
         scans = args.scans
         no_scans = len(scans)
