@@ -17,9 +17,6 @@ def parse_args():
     parser.add_argument("-f", "--force",
                         help="Overwrite previous reconstructions (default: %(default)s)",
                         action="store_true")
-    parser.add_argument("-e", "--eta",
-                        help="Detection efficiency eta (default: %(default).2f)",
-                        type=float, default=.8)
     parser.add_argument("-s", "--scans", help="Select scans to treat (default: %(default)s)",
                         type=parse_range, default="all")
     return parser.parse_args()
@@ -34,7 +31,7 @@ def create_dataset(args, h5, name, shape):
             print ("Old {} found. "
                    "If you want to overwrite them, use --force. Aborting.".format(name))
             sys.exit(1)
-    return h5.create_dataset(name, shape, compression="gzip", dtype="float32")
+    return h5.create_dataset(name, shape, compression="gzip", dtype=float32)
 
 
 def setup_datasets(args, h5):
