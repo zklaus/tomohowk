@@ -86,6 +86,12 @@ def parse_args():
     parser.add_argument("-s", "--scans", help="Select scans to treat. "
                         "All data, including coordinates, will be averaged over all specified scans.",
                         type=parse_range, required=True)
+    parser.add_argument("--vmin", help="Sets minimal value for colorcode. "
+                        "Can be either an absolute value, or a percentage. "
+                        "If the latter, it specifies the percentile of occuring values to ignore.", default=".1%")
+    parser.add_argument("--vmax", help="Sets maximal value for colorcode. "
+                        "Can be either an absolute value, or a percentage. "
+                        "If the latter, it specifies the percentile of occuring values to ignore.", default=".1%")
     args = parser.parse_args()
     return args
 
@@ -121,8 +127,14 @@ def main():
     q_max = Q[:,0,-1].max()
     p_min = P[:,0,0].min()
     p_max = P[:,-1,0].max()
-    W_min = numpy.percentile(W[:], 0.1)
-    W_max = numpy.percentile(W[:], 99.9)
+    if args.vmin[-1]=="%":
+        W_min = numpy.percentile(W[:], float(args.vmin[:-1]))
+    else:
+        W_min = float(args.vmin)
+    if args.vmax[-1]=="%":
+        W_max = numpy.percentile(W[:], 100.-float(args.vmax[:-1]))
+    else:
+        W_max = float(args.vmax)
     midpoint = 1 - W_max/(W_max + abs(W_min))
     cmap = shifted_color_map(cm.coolwarm, midpoint=midpoint, name="shifted")
     fig = pyplot.figure()
