@@ -33,12 +33,14 @@ __constant__ float sin_phi[NO_ANGLES];
 __global__ void K_l(float *quadratures,
                     float *Q, float *P, float *Kb) {{
   extern __shared__ float k[];
+  double cz, sz;
+  double ktmp;
   uint quad_idx = blockIdx.y*blockDim.y+threadIdx.y;
   uint phi_idx = (quad_idx/NO_PULSES)%NO_ANGLES;
   uint q_idx = blockIdx.x;
   uint p_idx = blockIdx.x;
   float x = quadratures[quad_idx]/sqeta;
-  float z = (Q[q_idx]*cos_phi[phi_idx] + P[p_idx]*sin_phi[phi_idx] - x)/h;
+  double z = (Q[q_idx]*cos_phi[phi_idx] + P[p_idx]*sin_phi[phi_idx] - x)/h;
   float zy = z/y;
   float zy2 = powf(zy, 2);
   float s1 = 0.;
@@ -50,11 +52,13 @@ __global__ void K_l(float *quadratures,
     s2 += pre_s2[n]/denom;
     s3 += pre_s3[n]/denom;
   }}
-  k[threadIdx.y] = zy*__sinf(z)*s3;
-  k[threadIdx.y] += zy2*(s1 - __cosf(z)*s2);
-  k[threadIdx.y] /= sqrtf(CUDART_PI_F);
-  k[threadIdx.y] += __cosf(z)*(expf(powf(y, 2.))-rsq4pi) + (rsq4pi - 1.);
-  k[threadIdx.y] /= four_pi_gamma;
+  sincos(z, &sz, &cz);
+  ktmp = zy*sz*s3;
+  ktmp += zy2*(s1 - cz*s2);
+  ktmp /= sqrtf(CUDART_PI_F);
+  ktmp += cz*(expf(powf(y, 2.))-rsq4pi) + (rsq4pi - 1.);
+  ktmp /= four_pi_gamma;
+  k[threadIdx.y] = ktmp;
   __syncthreads();
   for(unsigned int s=1; s < blockDim.y; s *= 2) {{
     if (threadIdx.y % (2*s) == 0) {{
