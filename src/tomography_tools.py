@@ -40,26 +40,3 @@ def build_mesh(q_mean, p_mean, s_max, Nq, Np):
     Q, P = [f.astype(scipy.float32) for f in scipy.meshgrid(q, p)]
     return q, p, Q, P
 
-
-def setup_reconstructions_group(h5, Nq, Np, force):
-    if "reconstructions" in h5.keys():
-        if force:
-            print "Old reconstructions found. Checking for dimensional compatibility."
-            old_group = h5["reconstructions"]
-            if (Nq, Np) == old_group["Q"].shape[2:]:
-                print ("Old reconstructions are dimensionally compatible.\n"
-                       "Overwriting selected scans.")
-                return (old_group["q_mean"], old_group["p_mean"],
-                        old_group["Q"], old_group["P"], old_group["W"])
-        else:
-            print "Old reconstructions found. If you want to overwrite them, use --force. Aborting."
-            sys.exit(1)
-    reconstruction_group = h5.create_group("reconstructions")
-    no_scans = h5["standardized_quadratures"].shape[0]
-    no_steps = h5["standardized_quadratures"].shape[1]
-    q_ds = reconstruction_group.create_dataset("q_mean", (no_scans, no_steps,))
-    p_ds = reconstruction_group.create_dataset("p_mean", (no_scans, no_steps,))
-    Q_ds = reconstruction_group.create_dataset("Q", (no_scans, no_steps, Nq, Np), chunks=(1, no_steps, Nq, Np))
-    P_ds = reconstruction_group.create_dataset("P", (no_scans, no_steps, Nq, Np), chunks=(1, no_steps, Nq, Np))
-    W_ds = reconstruction_group.create_dataset("W", (no_scans, no_steps, Nq, Np), chunks=(1, no_steps, Nq, Np))
-    return q_ds, p_ds, Q_ds, P_ds, W_ds

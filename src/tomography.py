@@ -8,9 +8,9 @@ from functools import partial
 import h5py
 from importlib import import_module
 import itertools
+import logging
 import time
-from tomography_tools import setup_reconstructions_group
-from scipy import floor, pi
+from scipy import float32, floor, pi
 import sys
 
 
@@ -28,8 +28,6 @@ def parse_args():
     parser.add_argument("-b", "--beta",
                         help="Beta reconstruction parameter (default: %(default).2f)",
                         type=float, default=.2)
-    parser.add_argument("-e", "--eta", help="Detection efficiency eta (default: %(default).2f)",
-                        type=float, default=.8)
     parser.add_argument("-a", "--approximation-order",
                         help="Order of the approximation in the "
                         "series expansion for the error function (default: %(default)u)",
@@ -43,9 +41,62 @@ def parse_args():
     return parser.parse_args()
 
 
+def setup_reconstructions_group(h5, args):
+    Nq, Np = args.Nq, args.Np
+    beta = float32(args.beta)
+    order = args.approximation_order
+    if "reconstructions" in h5.keys():
+        if args.force:
+            logging.info("Old reconstructions found. "
+                         "Checking for dimensional compatibility.")
+            old_group = h5["reconstructions"]
+            if (Nq, Np) == old_group["Q"].shape[2:]:
+                logging.info("Old reconstructions are dimensionally "
+                             "compatible. Checking parameters.")
+                old_beta = h5["reconstructions"].attrs["beta"]
+                old_order = h5["reconstructions"].attrs["approximation_order"]
+                if (beta != old_beta or order != old_order):
+                    logging.warning("Old reconstructions with different "
+                                    "parameters found (old: beta={:.2f}, order={}; "
+                                    "new: beta={:.2f}, order={}). Deleting."
+                                    "".format(old_beta, old_order, beta, order))
+                    del h5["reconstructions"]
+                else:
+                    return (old_group["q_mean"], old_group["p_mean"],
+                            old_group["Q"], old_group["P"], old_group["W"])
+            else:
+                logging.warning("Old reconstructions are dimensionally "
+                                "incompatible. Deleting.")
+                del h5["reconstructions"]
+        else:
+            logging.critical("Old reconstructions found. If you want to "
+                             "overwrite them, use --force. Aborting.")
+            sys.exit(1)
+    reconstruction_group = h5.create_group("reconstructions")
+    reconstruction_group.attrs.create("beta", beta, dtype=float32)
+    reconstruction_group.attrs.create("approximation_order", order, dtype=int)
+    no_scans = h5["standardized_quadratures"].shape[0]
+    no_steps = h5["standardized_quadratures"].shape[1]
+    q_ds = reconstruction_group.create_dataset("q_mean", (no_scans, no_steps,))
+    p_ds = reconstruction_group.create_dataset("p_mean", (no_scans, no_steps,))
+    Q_ds = reconstruction_group.create_dataset("Q", (no_scans, no_steps, Nq, Np),
+                                               chunks=(1, no_steps, Nq, Np))
+    P_ds = reconstruction_group.create_dataset("P", (no_scans, no_steps, Nq, Np),
+                                               chunks=(1, no_steps, Nq, Np))
+    W_ds = reconstruction_group.create_dataset("W", (no_scans, no_steps, Nq, Np),
+                                               chunks=(1, no_steps, Nq, Np))
+    return q_ds, p_ds, Q_ds, P_ds, W_ds
+
+
 def reconstruct_all_wigners(args, Calculator):
     with h5py.File(args.filename, "r+") as h5:
-        q_ds, p_ds, Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args.Nq, args.Np, args.force)
+        try:
+            eta = h5["raw_quadratures"].attrs["eta"]
+        except KeyError:
+            logging.critical("The detection efficiency eta could not be found in the data file. "
+                             "Please add it before continuing.")
+            raise
+        q_ds, p_ds, Q_ds, P_ds, W_ds = setup_reconstructions_group(h5, args)
         quadrature_ds = h5["standardized_quadratures"]
         no_scans, no_steps, no_angles, no_pulses = quadrature_ds.shape
         if args.scans=="all":
@@ -60,7 +111,7 @@ def reconstruct_all_wigners(args, Calculator):
             angles = angles[angles<max_angle]
             no_angles = angles.shape[0]
             L = no_angles*no_pulses
-            calculator = Calculator(args.eta, args.beta, L, angles, no_pulses,
+            calculator = Calculator(eta, args.beta, L, angles, no_pulses,
                                     order=args.approximation_order)
             R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
             start = time.time()
@@ -73,12 +124,12 @@ def reconstruct_all_wigners(args, Calculator):
                 elapsed = time.time()-start
                 part = float(i)/no_steps
                 if part>0:
-                    eta = int(elapsed/part)
+                    estimate = int(elapsed/part)
                 else:
-                    eta = 0
+                    estimate = 0
                 sys.stderr.write("\r{0:7.2%} (Elapsed: {1}, ETA: {2})".format(part,
                                                                               timedelta(seconds=int(elapsed)),
-                                                                              timedelta(seconds=eta)))
+                                                                              timedelta(seconds=estimate)))
             sys.stderr.write("\n")
 
 
