@@ -9,7 +9,7 @@ from scipy import cos, exp, pi, sin, sqrt
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 import sys
-from tools import parse_range
+from tools import parse_range, tag_hdf5_object_with_git_version
 
 
 def find_mean(W):
@@ -96,6 +96,7 @@ def setup_gaussian_state_ds(h5, no_scans, no_steps, force):
             print "Old gaussian fits found. If you want to overwrite them, use --force. Aborting."
             sys.exit(1)
     G_ds = h5.create_dataset("gaussians", (no_scans, no_steps, 5))
+    tag_hdf5_object_with_git_version(G_ds)
     return G_ds
 
 

@@ -7,6 +7,7 @@ import h5py
 import logging
 import scipy
 import sys
+from tools import tag_hdf5_object_with_git_version
 
 
 def read_tabular_data(filename, dtype=scipy.float32):
@@ -98,7 +99,9 @@ def setup_h5_file(args, shape):
     h5 = h5py.File(args.basename+".h5", mode)
     ds_q = h5.create_dataset("raw_quadratures", shape, compression="gzip", dtype="float32")
     ds_q.attrs.create("eta", args.eta, dtype=scipy.float32)
+    tag_hdf5_object_with_git_version(ds_q)
     ds_v = h5.create_dataset("vacuum_quadratures", shape[2:], compression="gzip", dtype="float32")
+    tag_hdf5_object_with_git_version(ds_v)
     return h5, ds_q, ds_v
 
 

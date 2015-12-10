@@ -8,7 +8,7 @@ import logging
 import scipy
 from scipy import arange, average, cos, float32, pi, polyfit, polyval, sqrt, std
 import sys
-from tools import parse_range
+from tools import parse_range, tag_hdf5_object_with_git_version
 
 
 def parse_args():
@@ -31,7 +31,9 @@ def create_dataset(args, h5, name, shape):
             print ("Old {} found. "
                    "If you want to overwrite them, use --force. Aborting.".format(name))
             sys.exit(1)
-    return h5.create_dataset(name, shape, compression="gzip", dtype=float32)
+    ds = h5.create_dataset(name, shape, compression="gzip", dtype=float32)
+    tag_hdf5_object_with_git_version(ds)
+    return ds
 
 
 def setup_datasets(args, h5):
