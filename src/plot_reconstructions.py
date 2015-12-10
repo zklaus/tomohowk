@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from argparse_tools import parse_range
 import h5py
 from math import log10, ceil
 from matplotlib import cm, colors, pyplot
 from matplotlib.animation import FuncAnimation
 import numpy
+from tools import parse_range
 
 import warnings
 #This filters a bug in matplotlib. Will be fixed in version 1.5.0.

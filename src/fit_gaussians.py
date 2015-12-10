@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from argparse_tools import parse_range
 import h5py
 from itertools import imap
 import scipy
@@ -10,6 +9,7 @@ from scipy import cos, exp, pi, sin, sqrt
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 import sys
+from tools import parse_range
 
 
 def find_mean(W):

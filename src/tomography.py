@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from argparse_tools import parse_range
 from datetime import timedelta
 from functools import partial
 import h5py
@@ -12,6 +11,7 @@ import logging
 import time
 from scipy import float32, floor, pi
 import sys
+from tools import parse_range
 
 
 def parse_args():

@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from argparse_tools import parse_range
 import h5py
 from lmfit import Model
 import logging
 import scipy
 from scipy import arange, average, cos, float32, pi, polyfit, polyval, sqrt, std
 import sys
+from tools import parse_range
 
 
 def parse_args():
