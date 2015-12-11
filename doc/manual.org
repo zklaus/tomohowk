@@ -78,8 +78,9 @@ Additionally, some analysis is needed to map the steps of the local oscillator t
 Both tasks are performed by the =standardize_raw_quadratures.py= program.
 Namely it does the following steps:
 1. Correct for intrastep drift. This is a defect that occurs if the moving stage of the local oscillator has not come completely to rest before the measurement is started. In this case the points for even one fixed angle are coming from slightly different angles, effectively broadening the distribution; however, due to the high repetition rate the movement of the stage is still slow compared with the acquired points, so that a polynomial fit can be used to correct for it.
-2. Center distributions on a cosine. This step serves two purposes. On the one hand it corrects an imbalance that can shift the voltages from one angle to the next. On the other hand it establishes the relation between the local oscillator steps and the quadrature angles. This is done by fitting the function \[V(\phi) = V_0 + A \cos(\omega \phi + \phi_0)\] to the quadrature data (where $V$ is for voltage). The quadrature distributions are then centered, angle for angle, on this cosine. Furthermore the whole curve is centered around zero. The fit parameters $V_0$ and $A$ are then discarded, while $\omega$ and $\phi_0$ are recorded for future analysis.
+2. Center distributions on a cosine. This step serves two purposes. On the one hand it corrects an imbalance that can shift the voltages from one angle to the next. On the other hand it establishes the relation between the local oscillator steps and the quadrature angles. This is done by fitting the function \[V(s) = V_0 + A \cos(\omega s + \phi_0)\] to the quadrature data (where $V$ is for voltage and $s$ for the step number). The quadrature distributions are then centered, angle for angle, on this cosine. Furthermore the whole curve is centered around zero. The fit parameters $V_0$, $A$, and $\omega$ are then discarded, while $\phi_0$ is recorded for future analysis. Additionally, we associate to every step $s$ the angle $\phi_s = \omega s$. These angles are recorded in the output. Here we ignore the offset $\phi_0$. This has been done because in principal a global phase is irrelevant, only amounting to a rotation of the entire phase space; however, it has since become clear that there is some classical noise in this offset that has to be accounted for. Consequently this treatment will change in a near future version of the programs.
 3. Finally, a vacuum correction is applied. This turns the voltages into quadratures according to (5) of New J. Phys. 16 (2014) 043004.
+At the end, we have a two dimensional array of quadratures $Y_{si}$ for every scan and step, where $s$ is the angle index and $i$ the pulse index, together with the angles $\phi_s$. This is the data needed for the Wigner reconstruction.
 ** Usage
 =standardize_raw_quadratures.py [-h] [-f] [-s SCANS] filename=
 *** Command Line Arguments
@@ -98,3 +99,49 @@ The output will also be placed in =<filename>.h5=, and comprises the following d
 + =angles= for all scans specifies the angle for every local oscillator step. Dimensions are (scan, angle).
 + =phi_0= holds the aforementioned fit parameter $\phi_0$. Dimensions are (scans, steps).
 + =standardized_quadratures= is the main output. It contains the standardized quadratures suitable for the reconstruction process. Dimensions are as the raw quadratures, that is (scan, step, angle, pulse).
+* Wigner reconstruction
+The Wigner reconstruction is based on the inverse Radon transform from the collection of pairs $(\phi_s, Y_{si})$.
+The details are described in our papers.
+The program that performs the reconstruction is =tomography.py=.
+It will calculate a reconstruction of the Wigner function in optical phase space.
+To do this it first estimates position and extension of the function directly from the quadrature data.
+With the general quadrature operator $\hat{X}_{\phi}$, the axis are given by $\hat{q} = \hat{X}_{0}$ and $\hat{p} = \hat{X}_{\pi/2}$.
+Consequently the center of the Wigner function in phase space is located at $(q_m, p_m) = (\langle \hat{X}_0 \rangle, \langle \hat{X}_{\pi/2} \rangle)$ and the extension can be estimated from the maximal value of the standard deviation.
+More precisely we calculate the maximal standard deviation over all angles from the quadrature data, \[s_{\text{max}} = \max_{\phi} \sigma(\hat{X}_{\phi}), \] and select a quadratic region with edge length 6 $s_{\text{max}}$ centered at $(q_m, p_m)$.
+For a Gaussian distribution this contains safely > 99.7% of the probability density.
+If we want to look at non Gaussian states in the future, the method still works; only the extension factor might need reevaluation.
+This quadratic region is then covered with a regular grid, the number of grid points is specified on the command line.
+Notice that this procedure gives a different grid for every step in every scan.
+While this increases the effort to handle the grid, it greatly improves our ability to achieve good resolution for moving states.
+Once the grid is in place the Wigner function is calculated on the grid points with the described method.
+The output contains not only the value of the Wigner function, but also the coordinates of every grid point.
+Additionally the mean coordinates of the Wigner function, i.e. the position estimates from the quadrature data, are saved.
+** Usage
+=tomography.py [-h] [-f] [--Nq NQ] [--Np NP] [-b BETA]=\\
+=[-a APPROXIMATION_ORDER] [-m {cuda,multiprocessing,serial}]=\\
+=[-s SCANS] filename=
+*** Command Line Arguments
++ =-h, --help=: Gives a short help
++ =-f, --force=: Normally the program will abort if the pertinent datasets are already present in the HDF5 file. With =-f=, the selected scans will be overwritten.
++ =-s SCANS, --scans SCANS=: Which scans to treat. The output (see section Output below) will only be calculated for the selected scans. SCANS can either be "all", or a comma separated list of ranges. Examples:
+  - =-s all=
+  - =--scans 4=
+  - =-s 4-6,9,12-14=
++ =filename=: Name of the HDF5 file. Contains both, input and output.
++ =--Nq NQ=: Number of grid points in q direction.
++ =--Np NP=: Number of grid points in p direction.
++ =-b BETA=: The $\beta$ parameter for the reconstruction.
++ =-a APPROXIMATION_ORDER=: Order of approximation for the error function part of the inverse radon transform.
++ =-m=: Chooses the method for reconstruction:
+  - =cuda= is fastest, but needs the appropriate gpu.
+  - =multiprocessing= uses all available processor cores on the machine.
+  - =serial= works in serial on one core only. Mostly useful for debugging.
+*** Input
+The input is contained in the HDF5 specified by the filename parameter.
+It consists in the =angles= and =standardized_quadratures= datasets as specified in the Output section of =standardize_raw_quadratures.py=.
+*** Output
+The output will also be placed in =<filename>.h5=, completely inside the group =reconstructions=.
+It contains the three datasets describing the reconstructed Wigner function, namely =Q= for the q coordinates of the grid points, =P= for their p coordinates, and =W= for the value of the Wigner function.
+All three have dimensions (scan, step, q, p).
+Furthermore, there are the two datasets containing the estimated center positions, =q_mean= and =p_mean=.
+Their Dimensions are (scan, step).
