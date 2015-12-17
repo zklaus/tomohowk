@@ -13,7 +13,7 @@ def estimate_position_from_quadratures(eta, angles, quadratures):
     X = quadratures/sqrt(eta)
     mean = scipy.average(X, axis=1)
     avg = interp1d(angles, mean)
-    q_mean = avg(0.)
+    q_mean = -avg(pi)
     p_mean = avg(pi/2.)
     s_max = scipy.std(X, axis=1).max()
     return q_mean, p_mean, s_max
@@ -42,9 +42,8 @@ def K(eta, h, QP, phix, order=5):
 
 
 class MultiprocessingCalculator(object):
-    def __init__(self, eta, beta, L, angles, no_pulses, order=5, no_procs=4):
+    def __init__(self, eta, beta, L, no_angles, no_pulses, order=5, no_procs=4):
         self.order = order
-        self.angles = angles
         self.eta = eta
         self.gamma = gamma(eta)
         self.beta = beta
@@ -59,10 +58,13 @@ class MultiprocessingCalculator(object):
         self.pre_s1 = exp(-self.n2/4.)
         self.pre_s2 = self.pre_s1*cosh(n*self.y)
         self.pre_s3 = self.pre_s1*n*sinh(n*self.y)
-        self.cos_phi = cos(angles)
-        self.sin_phi = sin(angles)
         self.no_procs = no_procs
         self.pool = multiprocessing.Pool(no_procs)
+
+    def set_angles(self, angles):
+        self.angles = angles
+        self.cos_phi = cos(angles)
+        self.sin_phi = sin(angles)
 
     def K(self, Q, P, quadratures):
         no_angles, no_pulses = quadratures.shape
@@ -74,8 +76,10 @@ class MultiprocessingCalculator(object):
         W = scipy.hstack(Wp)
         return scipy.sum(W, axis=0)/self.L
 
-    def reconstruct_wigner(self, quadratures, Nq, Np):
-        q_mean, p_mean, s_max = estimate_position_from_quadratures(self.eta, self.angles, quadratures)
+    def reconstruct_wigner(self, angles_quadratures, Nq, Np):
+        angles, quadratures = angles_quadratures
+        self.set_angles(angles)
+        q_mean, p_mean, s_max = estimate_position_from_quadratures(self.eta, angles, quadratures)
         q, p, Q, P = build_mesh(q_mean, p_mean, s_max, Nq, Np)
         W = self.K(Q.ravel(), P.ravel(), quadratures)
         return q_mean, p_mean, Q, P, W.reshape(Q.shape)

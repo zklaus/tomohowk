@@ -91,16 +91,14 @@ def estimate_position_from_quadratures(eta, angles, quadratures):
     X = quadratures/sqrt(eta)
     mean = scipy.average(X, axis=1)
     avg = interp1d(angles, mean)
-    q_mean = avg(0.)
+    q_mean = -avg(pi)
     p_mean = avg(pi/2.)
     s_max = scipy.std(X, axis=1).max()
     return q_mean, p_mean, s_max
 
 
 class CudaCalculator(object):
-    def __init__(self, eta, beta, L, angles, no_pulses, order=5):
-        self.angles = angles
-        no_angles = angles.shape[0]
+    def __init__(self, eta, beta, L, no_angles, no_pulses, order=5):
         self.mod_K = SourceModule(RADON_KERNEL.format(order, no_angles, no_pulses))
         self.K_gpu = self.mod_K.get_function("K_l")
         self.mod_reduction = SourceModule(REDUCTION_KERNEL)
@@ -126,10 +124,10 @@ class CudaCalculator(object):
         drv.memcpy_htod(self.mod_K.get_global("pre_s1")[0], ex)
         drv.memcpy_htod(self.mod_K.get_global("pre_s2")[0], pre_s2)
         drv.memcpy_htod(self.mod_K.get_global("pre_s3")[0], pre_s3)
+
+    def K(self, Q, P, angles, quadratures):
         drv.memcpy_htod(self.mod_K.get_global("cos_phi")[0], cos(angles).astype(scipy.float32))
         drv.memcpy_htod(self.mod_K.get_global("sin_phi")[0], sin(angles).astype(scipy.float32))
-
-    def K(self, Q, P, quadratures):
         Nx = Q.shape[0]
         Ny = int(floor(quadratures.size / 1024.))
         K = scipy.empty((Nx,), dtype=scipy.float32)
@@ -141,8 +139,9 @@ class CudaCalculator(object):
         self.reduction_gpu(Kb, drv.Out(K), block=(1, Ny, 1), grid=(Nx, 1), shared=Ny*4)
         return K/self.L
 
-    def reconstruct_wigner(self, quadratures, Nq, Np):
-        q_mean, p_mean, s_max = estimate_position_from_quadratures(self.eta, self.angles, quadratures)
+    def reconstruct_wigner(self, angles_quadratures, Nq, Np):
+        angles, quadratures = angles_quadratures
+        q_mean, p_mean, s_max = estimate_position_from_quadratures(self.eta, angles, quadratures)
         q, p, Q, P = build_mesh(q_mean, p_mean, s_max, Nq, Np)
-        W = self.K(Q.ravel(), P.ravel(), quadratures)
+        W = self.K(Q.ravel(), P.ravel(), angles, quadratures)
         return q_mean, p_mean, Q, P, W.reshape(Q.shape)

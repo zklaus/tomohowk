@@ -9,6 +9,7 @@ from importlib import import_module
 import itertools
 import logging
 import time
+import scipy
 from scipy import float32, floor, pi
 import sys
 from tools import parse_range, tag_hdf5_object_with_git_version
@@ -112,16 +113,19 @@ def reconstruct_all_wigners(args, Calculator):
             no_scans = len(scans)
         for scan_no, i_scan in enumerate(scans, 1):
             sys.stderr.write("Starting scan {}, {} of {}:\n".format(i_scan, scan_no, no_scans))
-            angles = h5["angles"][i_scan]
-            max_angle = floor(angles.max()/pi)*pi
-            angles = angles[angles<max_angle]
-            no_angles = angles.shape[0]
+            angles = h5["corrected_angles"][i_scan]
+            max_angle = floor((angles[0,-1]-angles[0,0])/pi)*pi+angles[0,0]
+            i_max_angle = scipy.argwhere(angles[0]<max_angle).max()
+            angles = angles[:,:i_max_angle]
+            no_angles = angles.shape[1]
             L = no_angles*no_pulses
-            calculator = Calculator(eta, args.beta, L, angles, no_pulses,
+            calculator = Calculator(eta, args.beta, L, no_angles, no_pulses,
                                     order=args.approximation_order)
             R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
             start = time.time()
-            for i, (q, p, Q, P, W) in enumerate(itertools.imap(R, quadrature_ds[i_scan,:,:no_angles,:])):
+            for i, (q, p, Q, P, W) in enumerate(itertools.imap(
+                    R,
+                    itertools.izip(angles, quadrature_ds[i_scan,:,:no_angles,:]))):
                 q_ds[i_scan, i] = q
                 p_ds[i_scan, i] = p
                 Q_ds[i_scan, i,:,:] = Q
