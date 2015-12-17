@@ -169,6 +169,7 @@ def main():
     no_digits = int(ceil(log10(no_steps))+1)
     title_string = "Wigner Function at step {:{width}}/{:{width}}"
     title = ax.set_title(title_string.format(0, no_steps, width=no_digits))
+    ax.grid(True)
     if args.output:
         fig.savefig(args.output+"_thumb.pdf")
     def animate(i):
@@ -177,6 +178,7 @@ def main():
                                        vmin=W_min, vmax=W_max,
                                        cmap=cmap,
                                        shading=shading))
+        ax.grid(True)
         return quad.quad,
     ani = FuncAnimation(fig, animate, no_steps, interval=100, repeat_delay=1000)
     if args.output:
