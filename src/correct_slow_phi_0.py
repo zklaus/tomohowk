@@ -5,6 +5,7 @@ import argparse
 import h5py
 import scipy
 from scipy import arange, float32, pi, polyfit, polyval, tile
+import sys
 from tools import parse_range, tag_hdf5_object_with_git_version
 
 
