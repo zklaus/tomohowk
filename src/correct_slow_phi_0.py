@@ -36,7 +36,7 @@ def create_dataset(args, h5, name, shape):
 
 def load_phi_0(args):
     with h5py.File(args.filename) as h5:
-        phi_0_ds = h5["phi_0"]
+        phi_0_ds = h5["raw_phase_offsets"]
         if args.scans == "all":
             scans = range(phi_0_ds.shape[0])
         else:
@@ -66,7 +66,7 @@ def calculate_slow_phi_0s(phi_0s):
     return slow_phi_0s
 
 
-def correct_angles(args, slow_phi_0s):
+def correct_angles(args, phi_0s, slow_phi_0s):
     with h5py.File(args.filename) as h5:
         angles_ds = h5["angles"]
         no_scans, no_angles = angles_ds.shape
@@ -75,18 +75,21 @@ def correct_angles(args, slow_phi_0s):
             scans = list(range(angles_ds.shape[0]))
         else:
             scans = args.scans
-        corrected_angles_ds = create_dataset(args, h5, "corrected_angles",
-                                             (no_scans, no_steps, no_angles))
+        standardized_phases_ds = create_dataset(args, h5, "standardized_phases",
+                                               (no_scans, no_steps, no_angles))
+        phase_offsets_ds = create_dataset(args, h5, "phase_offsets",
+                                             (no_scans, no_steps))
         for i_scan in scans:
             angles = tile(angles_ds[i_scan,:], (no_steps,1))
-            corrected_angles_ds[i_scan,:,:] = angles+slow_phi_0s[i_scan,:,None]
+            standardized_phases_ds[i_scan,:,:] = angles+slow_phi_0s[i_scan,:,None]
+            phase_offsets_ds[i_scan,:] = phi_0s[i_scan,:]-slow_phi_0s[i_scan,:]
 
 
 def main():
     args = parse_args()
     phi_0s = load_phi_0(args)
     slow_phi_0s = calculate_slow_phi_0s(phi_0s)
-    correct_angles(args, slow_phi_0s)
+    correct_angles(args, phi_0s, slow_phi_0s)
 
 
 if __name__=="__main__":
