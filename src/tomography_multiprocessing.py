@@ -13,7 +13,7 @@ def estimate_position_from_quadratures(eta, angles, quadratures):
     X = quadratures/sqrt(eta)
     mean = scipy.average(X, axis=1)
     avg = interp1d(angles, mean)
-    q_mean = -avg(pi)
+    q_mean = avg(0.)
     p_mean = avg(pi/2.)
     s_max = scipy.std(X, axis=1).max()
     return q_mean, p_mean, s_max
