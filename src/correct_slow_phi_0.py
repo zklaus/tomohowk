@@ -3,8 +3,9 @@
 
 import argparse
 import h5py
+from numpy import float32
 import scipy
-from scipy import arange, float32, pi, polyfit, polyval, tile
+from scipy import arange, pi, polyfit, polyval, tile
 import sys
 from tools import parse_range, tag_hdf5_object_with_git_version
 
@@ -22,11 +23,11 @@ def parse_args():
 def create_dataset(args, h5, name, shape):
     if name in h5.keys():
         if args.force:
-            print ("Old {} found. Force active, overwriting old data.".format(name))
+            print("Old {} found. Force active, overwriting old data.".format(name))
             return h5[name]
         else:
-            print ("Old {} found. "
-                   "If you want to overwrite them, use --force. Aborting.".format(name))
+            print("Old {} found. "
+                 "If you want to overwrite them, use --force. Aborting.".format(name))
             sys.exit(1)
     ds = h5.create_dataset(name, shape, compression="gzip", dtype=float32)
     tag_hdf5_object_with_git_version(ds)
@@ -46,8 +47,8 @@ def load_phi_0(args):
 
 def unfold(phi_0):
     pr = phi_0.ravel()/pi
-    for k in xrange(4):
-        for i in xrange(len(pr)-1):
+    for k in range(4):
+        for i in range(len(pr)-1):
             if pr[i+1]-pr[i]>.5:
                 pr[i+1] -= 1.
             elif pr[i+1]-pr[i]<-.5:
@@ -71,7 +72,7 @@ def correct_angles(args, slow_phi_0s):
         no_scans, no_angles = angles_ds.shape
         no_scans, no_steps = slow_phi_0s.shape
         if args.scans == "all":
-            scans = range(angles_ds.shape[0])
+            scans = list(range(angles_ds.shape[0]))
         else:
             scans = args.scans
         corrected_angles_ds = create_dataset(args, h5, "corrected_angles",

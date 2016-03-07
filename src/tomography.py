@@ -8,9 +8,10 @@ import h5py
 from importlib import import_module
 import itertools
 import logging
+from numpy import float32
 import time
 import scipy
-from scipy import float32, floor, pi
+from scipy import floor, pi
 import sys
 from tools import parse_range, tag_hdf5_object_with_git_version
 
@@ -107,7 +108,7 @@ def reconstruct_all_wigners(args, Calculator):
         quadrature_ds = h5["standardized_quadratures"]
         no_scans, no_steps, no_angles, no_pulses = quadrature_ds.shape
         if args.scans=="all":
-            scans = xrange(no_scans)
+            scans = range(no_scans)
         else:
             scans = args.scans
             no_scans = len(scans)
@@ -148,7 +149,7 @@ def main():
     mod = import_module("tomography_"+args.method)
     calculator_name = args.method.capitalize()+"Calculator"
     Calculator = getattr(mod, calculator_name)
-    print "Method chosen:", args.method, Calculator
+    print("Method chosen:", args.method, Calculator)
     reconstruct_all_wigners(args, Calculator)
 
 

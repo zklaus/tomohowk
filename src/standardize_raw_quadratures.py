@@ -6,7 +6,8 @@ import h5py
 from lmfit import Model
 import logging
 import scipy
-from scipy import arange, average, cos, float32, pi, polyfit, polyval, sqrt, std
+from numpy import float32
+from scipy import arange, arccos, average, cos, pi, polyfit, polyval, sqrt, std
 import sys
 from tools import parse_range, tag_hdf5_object_with_git_version
 
@@ -25,11 +26,11 @@ def parse_args():
 def create_dataset(args, h5, name, shape):
     if name in h5.keys():
         if args.force:
-            print ("Old {} found. Force active, overwriting old data.".format(name))
+            print("Old {} found. Force active, overwriting old data.".format(name))
             return h5[name]
         else:
-            print ("Old {} found. "
-                   "If you want to overwrite them, use --force. Aborting.".format(name))
+            print("Old {} found. "
+                  "If you want to overwrite them, use --force. Aborting.".format(name))
             sys.exit(1)
     ds = h5.create_dataset(name, shape, compression="gzip", dtype=float32)
     tag_hdf5_object_with_git_version(ds)
@@ -87,7 +88,7 @@ def vacuum_correct(quadratures, vacuum_quadratures):
 def correct_intrastep_drift(quadratures, A=1.):
     no_steps, no_pulses = quadratures.shape
     pulses = scipy.arange(no_pulses)
-    for i in xrange(quadratures.shape[0]):
+    for i in range(quadratures.shape[0]):
         quads = quadratures[i]
         mean = average(quads)
         model = polyfit(pulses, quads, 5)
@@ -115,13 +116,8 @@ def standardize_all_quadratures(args, h5):
     omegas = scipy.empty((no_steps,), dtype=float32)
     for scan_no, i_scan in enumerate(scans, 1):
         sys.stderr.write("Starting scan {}, {} of {}:\n".format(i_scan, scan_no, no_scans))
-        raw_quadratures = raw_ds[i_scan, 0, :, :]
-        omega, phi_0, quadratures = standardize_quadratures(raw_quadratures, vacuum_quadratures)
-        omegas[0] = omega
-        ds_phi_0[i_scan, 0] = phi_0
-        ds_q[i_scan, 0, :, :] = quadratures
-        sys.stderr.write("\r{0:3.2%}".format(0.))
-        for i_step in xrange(1, no_steps):
+        omega = None
+        for i_step in range(no_steps):
             raw_quadratures = raw_ds[i_scan, i_step, :, :]
             omega, phi_0, quadratures = standardize_quadratures(raw_quadratures, vacuum_quadratures, omega)
             omegas[i_step] = omega

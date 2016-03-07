@@ -182,7 +182,7 @@ def main():
         return quad.quad,
     ani = FuncAnimation(fig, animate, no_steps, interval=100, repeat_delay=1000)
     if args.output:
-        print "Saving movie to {}. This may take a couple of minutes.".format(args.output)
+        print("Saving movie to {}. This may take a couple of minutes.".format(args.output))
         ani.save(args.output+".mp4", fps=10, extra_args=['-vcodec', 'libx264'])
     pyplot.show()
 
