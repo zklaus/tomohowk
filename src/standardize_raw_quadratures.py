@@ -42,7 +42,7 @@ def setup_datasets(args, h5):
     no_scans, no_steps, no_angles, no_pulses = shape
     ds_q = create_dataset(args, h5, "standardized_quadratures", shape)
     ds_a = create_dataset(args, h5, "angles", (no_scans, no_angles))
-    ds_phi_0 = create_dataset(args, h5, "phi_0", (no_scans, no_steps))
+    ds_phi_0 = create_dataset(args, h5, "raw_phase_offsets", (no_scans, no_steps))
     return ds_phi_0, ds_a, ds_q
 
 

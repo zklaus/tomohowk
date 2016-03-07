@@ -113,7 +113,7 @@ def reconstruct_all_wigners(args, Calculator):
             no_scans = len(scans)
         for scan_no, i_scan in enumerate(scans, 1):
             sys.stderr.write("Starting scan {}, {} of {}:\n".format(i_scan, scan_no, no_scans))
-            angles = h5["slow_phase_angles"][i_scan]
+            angles = h5["standardized_phases"][i_scan]
             quad_list = []
             L = 0
             for i_step in range(no_steps):
