@@ -3,7 +3,6 @@
 
 import argparse
 import h5py
-from itertools import imap
 import scipy
 from scipy import cos, exp, pi, sin, sqrt
 from scipy.interpolate import interp1d
@@ -17,8 +16,8 @@ def find_mean(W):
     m, n = Wn.shape
     i_q = 0.
     i_p = 0.
-    for i in xrange(m):
-        for j in xrange(n):
+    for i in range(m):
+        for j in range(n):
             i_q += j*Wn[i,j]
             i_p += i*Wn[i,j]
     return (i_q, i_p)
@@ -90,10 +89,10 @@ def load_reconstructions(h5):
 def setup_gaussian_state_ds(h5, no_scans, no_steps, force):
     if "gaussians" in h5.keys():
         if force:
-            print "Old gaussian fits found. Force active, deleting old fits."
+            print("Old gaussian fits found. Force active, deleting old fits.")
             del h5["gaussians"]
         else:
-            print "Old gaussian fits found. If you want to overwrite them, use --force. Aborting."
+            print("Old gaussian fits found. If you want to overwrite them, use --force. Aborting.")
             sys.exit(1)
     G_ds = h5.create_dataset("gaussians", (no_scans, no_steps, 5))
     tag_hdf5_object_with_git_version(G_ds)
@@ -113,8 +112,8 @@ def main():
         no_scans = len(scans)
     for scan_no, i_scan in enumerate(scans, 1):
         sys.stderr.write("Starting scan {}, {} of {}:\n".format(i_scan, scan_no, no_scans))
-        for i_step, state in enumerate(imap(fit_gaussian_state,
-                                            Q_ds[i_scan], P_ds[i_scan], W_ds[i_scan])):
+        for i_step, state in enumerate(map(fit_gaussian_state,
+                                           Q_ds[i_scan], P_ds[i_scan], W_ds[i_scan])):
             G_ds[i_scan, i_step] = state
             sys.stderr.write('\r{0:7.2%}'.format(float(i_step)/no_steps))
         sys.stderr.write("\r100.00%\n")

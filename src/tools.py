@@ -29,7 +29,7 @@ def parse_range(string):
             if lower>=upper:
                 msg = "Invalid range specification (not ascending): {}".format(range_string)
                 raise argparse.ArgumentTypeError(msg)
-            scans.extend(range(lower, upper+1))
+            scans.extend(list(range(lower, upper+1)))
     return scans
 
 def git_describe():
@@ -39,9 +39,10 @@ def git_describe():
         logging.warning("Could not import GitPython. "
                         "Version information will not "
                         "be available in the data file")
-        return "unknown"
-    repo = Repo(__file__)
-    return repo.git.describe(always=True, dirty=True)
+        return "unknown".encode("ascii")
+    repo = Repo(__file__, search_parent_directories=True)
+    description = repo.git.describe(always=True, dirty=True)
+    return description.encode("ascii")
 
 def tag_hdf5_object_with_git_version(obj):
     obj.attrs.create("git_version", git_describe())
