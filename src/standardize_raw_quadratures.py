@@ -50,29 +50,35 @@ def cosmod(x, V0, A, omega, phi0):
     return V0 + A*cos(omega*x + phi0)
 
 
-def center_on_cos(raw_quadratures, omega=None):
+def center_on_cos(raw_quadratures,
+                  phi0=None, omega=None, vary_omega=True, snap_omega=False):
     mean = scipy.average(raw_quadratures, axis=1)
     no_angles, no_pulses = raw_quadratures.shape
     model = Model(cosmod)
-    model.set_param_hint("V0", value=scipy.average(mean))
-    model.set_param_hint("A", value=(mean.max()-mean.min())/2.)
-    model.set_param_hint("phi0", value=0.)
-    if omega==None:
+    V0 = scipy.average(mean)
+    model.set_param_hint("V0", value=V0)
+    A = (mean.max()-mean.min())/2.
+    model.set_param_hint("A", min=0., value=A)
+    if phi0 is None:
+        cos_phi0 = (mean[0]-V0)/A
+        phi0 = arccos(cos_phi0) - 2*pi
+    model.set_param_hint("phi0", min=-2*pi, max=0., value=phi0.real)
+    if omega is None:
         # determine omega (usually from first step)
-        model.set_param_hint("omega", value=2.*pi/(no_angles*.7))
-    else:
-        # omega is already fixed
-        model.set_param_hint("omega", value=omega, vary=False)
-    model.make_params()
+        zero_crossings = scipy.where(scipy.diff(scipy.sign(mean)))[0]
+        omega = pi/scipy.average(scipy.diff(zero_crossings))
+        vary_omega = True
+    model.set_param_hint("omega", min=0., value=omega, vary=vary_omega)
+    model.make_params(verbose=False)
     steps = scipy.arange(no_angles)
-    res = model.fit(mean, x=steps)
+    res = model.fit(mean, x=steps, verbose=False)
     omega_param = res.params["omega"]
-    if omega==None:
+    if snap_omega:
         appx_omega = float(omega_param)
         N = int(round(pi/appx_omega))
         omega = pi/N
         omega_param.set(omega, vary=False)
-        res.fit(mean, x=steps)
+        res.fit(mean, x=steps, verbose=False)
     mean_fit = res.eval(x=steps)
     offset = mean-mean_fit
     aligned_quadratures = raw_quadratures - scipy.tile(offset, (no_pulses, 1)).T
@@ -96,9 +102,9 @@ def correct_intrastep_drift(quadratures, A=1.):
     return quadratures
 
 
-def standardize_quadratures(raw_quadratures, vacuum_quadratures, omega=None):
+def standardize_quadratures(raw_quadratures, vacuum_quadratures, phi_0=None, omega=None, vary_omega=True):
     corrected_quadratures = correct_intrastep_drift(raw_quadratures)
-    centered_quadratures, omega, phi_0 = center_on_cos(corrected_quadratures, omega)
+    centered_quadratures, omega, phi_0 = center_on_cos(corrected_quadratures, phi_0, omega, vary_omega=vary_omega)
     vacuum_corrected_quadratures = vacuum_correct(centered_quadratures, vacuum_quadratures)
     return omega, phi_0, vacuum_corrected_quadratures
 
@@ -116,10 +122,11 @@ def standardize_all_quadratures(args, h5):
     omegas = scipy.empty((no_steps,), dtype=float32)
     for scan_no, i_scan in enumerate(scans, 1):
         sys.stderr.write("Starting scan {}, {} of {}:\n".format(i_scan, scan_no, no_scans))
+        phi_0 = None
         omega = None
         for i_step in range(no_steps):
             raw_quadratures = raw_ds[i_scan, i_step, :, :]
-            omega, phi_0, quadratures = standardize_quadratures(raw_quadratures, vacuum_quadratures, omega)
+            omega, phi_0, quadratures = standardize_quadratures(raw_quadratures, vacuum_quadratures, phi_0, omega, vary_omega=False)
             omegas[i_step] = omega
             ds_phi_0[i_scan, i_step] = phi_0
             ds_q[i_scan, i_step, :, :] = quadratures
