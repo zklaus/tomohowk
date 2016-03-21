@@ -91,20 +91,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def setup_h5_file(args, shape):
-    if args.force:
-        mode = "w"
-    else:
-        mode = "w-"
-    h5 = h5py.File(args.basename+".h5", mode)
-    ds_q = h5.create_dataset("raw_quadratures", shape, compression="gzip", dtype="float32")
-    ds_q.attrs.create("eta", args.eta, dtype=scipy.float32)
-    tag_hdf5_object_with_git_version(ds_q)
-    ds_v = h5.create_dataset("vacuum_quadratures", shape[2:], compression="gzip", dtype="float32")
-    tag_hdf5_object_with_git_version(ds_v)
-    return h5, ds_q, ds_v
-
-
 def import_data(args, ds):
     (no_scans, no_timesteps, no_angles, no_pulses_per_angle) = ds.shape
     for scan in xrange(no_scans):
@@ -146,9 +132,16 @@ def import_vacuum(args, ds):
 def main():
     args = parse_args()
     shape = read_information(args.basename)
-    h5, ds_q, ds_v = setup_h5_file(args, shape)
-    import_vacuum(args, ds_v)
-    import_data(args, ds_q)
+    if args.force:
+        mode = "w"
+    else:
+        mode = "w-"
+    with h5py.File(args.basename+".h5", mode) as h5:
+        ds_v = create_dataset(args, h5, "vacuum_quadratures", shape[2:])
+        import_vacuum(args, ds_v)
+        ds_q = create_dataset(args, h5, "raw_quadratures", shape)
+        ds_q.attrs.create("eta", args.eta, dtype=float32)
+        import_data(args, ds_q)
 
 
 if __name__ == "__main__":

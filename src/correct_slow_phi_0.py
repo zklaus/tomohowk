@@ -7,7 +7,7 @@ from numpy import float32
 import scipy
 from scipy import arange, pi, polyfit, polyval, tile
 import sys
-from tools import parse_range, tag_hdf5_object_with_git_version
+from tools import parse_range, create_dataset
 
 
 def parse_args():
@@ -18,20 +18,6 @@ def parse_args():
                         action="store_true")
     parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range, default="all")
     return parser.parse_args()
-
-
-def create_dataset(args, h5, name, shape):
-    if name in h5.keys():
-        if args.force:
-            print("Old {} found. Force active, overwriting old data.".format(name))
-            return h5[name]
-        else:
-            print("Old {} found. "
-                 "If you want to overwrite them, use --force. Aborting.".format(name))
-            sys.exit(1)
-    ds = h5.create_dataset(name, shape, compression="gzip", dtype=float32)
-    tag_hdf5_object_with_git_version(ds)
-    return ds
 
 
 def load_phi_0(args):
