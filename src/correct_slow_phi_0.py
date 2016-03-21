@@ -7,7 +7,7 @@ from numpy import float32
 import scipy
 from scipy import arange, pi, polyfit, polyval, tile
 import sys
-from tools import parse_range, tag_hdf5_object_with_git_version
+from tools import parse_range, create_dataset
 
 
 def parse_args():
@@ -18,20 +18,6 @@ def parse_args():
                         action="store_true")
     parser.add_argument("-s", "--scans", help="Select scans to treat", type=parse_range, default="all")
     return parser.parse_args()
-
-
-def create_dataset(args, h5, name, shape):
-    if name in h5.keys():
-        if args.force:
-            print("Old {} found. Force active, overwriting old data.".format(name))
-            return h5[name]
-        else:
-            print("Old {} found. "
-                 "If you want to overwrite them, use --force. Aborting.".format(name))
-            sys.exit(1)
-    ds = h5.create_dataset(name, shape, compression="gzip", dtype=float32)
-    tag_hdf5_object_with_git_version(ds)
-    return ds
 
 
 def load_phi_0(args):
@@ -69,8 +55,7 @@ def calculate_slow_phi_0s(phi_0s):
 def correct_angles(args, phi_0s, slow_phi_0s):
     with h5py.File(args.filename) as h5:
         angles_ds = h5["angles"]
-        no_scans, no_angles = angles_ds.shape
-        no_scans, no_steps = slow_phi_0s.shape
+        no_scans, no_steps, no_angles = angles_ds.shape
         if args.scans == "all":
             scans = list(range(angles_ds.shape[0]))
         else:
@@ -79,10 +64,8 @@ def correct_angles(args, phi_0s, slow_phi_0s):
                                                (no_scans, no_steps, no_angles))
         phase_offsets_ds = create_dataset(args, h5, "phase_offsets",
                                              (no_scans, no_steps))
-        for i_scan in scans:
-            angles = tile(angles_ds[i_scan,:], (no_steps,1))
-            standardized_phases_ds[i_scan,:,:] = angles+slow_phi_0s[i_scan,:,None]
-            phase_offsets_ds[i_scan,:] = phi_0s[i_scan,:]-slow_phi_0s[i_scan,:]
+        standardized_phases_ds[:,:,:] = angles_ds[:,:,:]+slow_phi_0s[:,:,None]
+        phase_offsets_ds[:,:] = phi_0s[:,:]-slow_phi_0s[:,:]
 
 
 def main():

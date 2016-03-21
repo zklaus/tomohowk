@@ -10,7 +10,7 @@ import logging
 from numpy import float32
 import time
 import scipy
-from scipy import floor, pi
+from scipy import pi
 import sys
 from tools import parse_range, tag_hdf5_object_with_git_version
 
@@ -79,20 +79,37 @@ def setup_reconstructions_group(h5, args):
     reconstruction_group.attrs.create("approximation_order", order, dtype=int)
     no_scans = h5["standardized_quadratures"].shape[0]
     no_steps = h5["standardized_quadratures"].shape[1]
-    q_ds = reconstruction_group.create_dataset("q_mean", (no_scans, no_steps,))
+    q_ds = reconstruction_group.create_dataset("q_mean", (no_scans, no_steps,), dtype=float32)
     tag_hdf5_object_with_git_version(q_ds)
-    p_ds = reconstruction_group.create_dataset("p_mean", (no_scans, no_steps,))
+    p_ds = reconstruction_group.create_dataset("p_mean", (no_scans, no_steps,), dtype=float32)
     tag_hdf5_object_with_git_version(p_ds)
-    Q_ds = reconstruction_group.create_dataset("Q", (no_scans, no_steps, Nq, Np),
+    Q_ds = reconstruction_group.create_dataset("Q", (no_scans, no_steps, Nq, Np), dtype=float32,
                                                chunks=(1, no_steps, Nq, Np))
     tag_hdf5_object_with_git_version(Q_ds)
-    P_ds = reconstruction_group.create_dataset("P", (no_scans, no_steps, Nq, Np),
+    P_ds = reconstruction_group.create_dataset("P", (no_scans, no_steps, Nq, Np), dtype=float32,
                                                chunks=(1, no_steps, Nq, Np))
     tag_hdf5_object_with_git_version(P_ds)
-    W_ds = reconstruction_group.create_dataset("W", (no_scans, no_steps, Nq, Np),
+    W_ds = reconstruction_group.create_dataset("W", (no_scans, no_steps, Nq, Np), dtype=float32,
                                                chunks=(1, no_steps, Nq, Np))
     tag_hdf5_object_with_git_version(W_ds)
     return q_ds, p_ds, Q_ds, P_ds, W_ds
+
+
+def quad_generator(angles, i_scan, no_steps, quadrature_ds):
+    for i_step in range(no_steps):
+        a = angles[i_step]
+        indices = scipy.argwhere(a < a[0] + pi)
+        i_min = 0
+        i_max = indices.max() + 1
+        try:
+            assert (a[i_max] - a[i_min] > pi)
+        except:
+            logging.error("The phases seem not to cover a pi interval in scan %i, step %i. "
+                          "The following phases were found:", i_scan, i_step)
+            logging.error(a)
+            logging.error(indices.T.squeeze())
+            raise
+        yield (a[i_min:i_max + 1], quadrature_ds[i_scan, i_step, i_min:i_max + 1, :])
 
 
 def reconstruct_all_wigners(args, Calculator):
@@ -111,33 +128,21 @@ def reconstruct_all_wigners(args, Calculator):
         else:
             scans = args.scans
             no_scans = len(scans)
+        calculator = Calculator(eta, args.beta, order=args.approximation_order)
+        R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
         for scan_no, i_scan in enumerate(scans, 1):
             sys.stderr.write("Starting scan {}, {} of {}:\n".format(i_scan, scan_no, no_scans))
             angles = h5["standardized_phases"][i_scan]
-            quad_list = []
-            L = 0
-            for i_step in range(no_steps):
-                a = angles[i_step]
-                indices = scipy.argwhere(scipy.logical_and(a>0., a<pi))
-                i_min = indices.min()-1
-                i_max = indices.max()+1
-                L += i_max - i_min + 1
-                quad_list.append((a[i_min:i_max+1],
-                                  quadrature_ds[i_scan,i_step,i_min:i_max+1,:]))
-            no_angles = None
-            calculator = Calculator(eta, args.beta, L, no_angles, no_pulses,
-                                    order=args.approximation_order)
-            R = partial(calculator.reconstruct_wigner, Nq=args.Nq, Np=args.Np)
             start = time.time()
-            for i, (q, p, Q, P, W) in enumerate(map(R, quad_list)):
-                q_ds[i_scan, i] = q
-                p_ds[i_scan, i] = p
-                Q_ds[i_scan, i,:,:] = Q
-                P_ds[i_scan, i,:,:] = P
-                W_ds[i_scan, i,:,:] = W
+            for i_step, (q, p, Q, P, W) in enumerate(map(R, quad_generator(angles, i_scan, no_steps, quadrature_ds))):
+                q_ds[i_scan, i_step] = q
+                p_ds[i_scan, i_step] = p
+                Q_ds[i_scan, i_step,:,:] = Q
+                P_ds[i_scan, i_step,:,:] = P
+                W_ds[i_scan, i_step,:,:] = W
                 elapsed = time.time()-start
-                part = float(i)/no_steps
-                if part>0:
+                part = float(i_step)/no_steps
+                if part > 0:
                     estimate = int(elapsed/part)
                 else:
                     estimate = 0
