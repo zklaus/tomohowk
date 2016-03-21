@@ -5,20 +5,21 @@ import argparse
 import glob
 import h5py
 import logging
+from numpy import float32
 import scipy
 import sys
-from tools import tag_hdf5_object_with_git_version
+from tools import create_dataset
 
 
-def read_tabular_data(filename, dtype=scipy.float32):
+def read_tabular_data(filename, dtype=float32):
     table = []
     with open(filename, "U") as f:
         for line in f:
             stripped_line = line.strip()
-            if stripped_line=="":
+            if stripped_line == "":
                 continue
-            data = stripped_line.replace(",", ".").replace(";", "").replace("x","\t").split("\t")
-            table.append(map(dtype, data))
+            data = stripped_line.replace(",", ".").replace(";", "").replace("x", "\t").split("\t")
+            table.append(list(map(dtype, data)))
     return scipy.array(table, dtype=dtype)
 
 
@@ -26,16 +27,16 @@ def read_information(basename):
     try:
         base = read_tabular_data(basename)
     except IOError:
-        logging.warn("Basefile missing.")
+        logging.warning("Basefile missing.")
     try:
-        no_scans = read_tabular_data(basename+"-nscans", int)[0,0]
+        no_scans = read_tabular_data(basename+"-nscans", int)[0, 0]
     except IOError:
-        logging.warn("-nscans file missing. Determining no_scans from data files.")
+        logging.warning("-nscans file missing. Determining no_scans from data files.")
         no_scans = 0
     try:
         no_pulses_per_angle, no_angles = read_tabular_data(basename+"-pulses", int)[0]
     except IOError:
-        logging.warn("-pulses file missing. Determining no_angles and no_pulses from first data file.")
+        logging.warning("-pulses file missing. Determining no_angles and no_pulses from first data file.")
         no_angles, no_pulses_per_angle = read_tabular_data(basename+"-scan-0-step-0").shape
     try:
         timestep_size, no_timesteps = read_tabular_data(basename+"-step", int)[0]
@@ -58,19 +59,19 @@ def read_information(basename):
         step_list.append(step)
     for scan in scans:
         steps[scan] = sorted(steps[scan])
-    all_steps = steps.values()
+    all_steps = list(steps.values())
     reference_steps = all_steps[0]
     for s in all_steps[1:]:
-        if s!=reference_steps:
+        if s != reference_steps:
             raise RuntimeError("Not all scans use the same number of steps. "
                                "This does not fit into a table.")
-    if reference_steps!=range(no_timesteps):
-        logging.warn("The actually used steps are not those described in the -step file.")
+    if reference_steps != list(range(no_timesteps)):
+        logging.warning("The actually used steps are not those described in the -step file.")
         no_timesteps = len(reference_steps)
         if (reference_steps != scipy.arange(no_timesteps)).any():
             raise RuntimeError("Timesteps are not consecutive. Aborting.")
     if scans != set(range(no_scans)):
-        logging.warn("The actually used scans are not those described in the -nscans file.")
+        logging.warning("The actually used scans are not those described in the -nscans file.")
         no_scans = len(scans)
         if scans != set(range(no_scans)):
             raise RuntimeError("Scans are not consecutive. Aborting.")
@@ -93,9 +94,9 @@ def parse_args():
 
 def import_data(args, ds):
     (no_scans, no_timesteps, no_angles, no_pulses_per_angle) = ds.shape
-    for scan in xrange(no_scans):
-        print "Starting scan {} of {}:".format(scan, no_scans)
-        for step in xrange(no_timesteps):
+    for scan in range(no_scans):
+        print("Starting scan {} of {}:".format(scan, no_scans))
+        for step in range(no_timesteps):
             fn = "{}-scan-{}-step-{}".format(args.basename, scan, step)
             data = read_tabular_data(fn)
             if data.shape == ds.shape[2:]:
@@ -104,18 +105,17 @@ def import_data(args, ds):
                 logging.error("Shape mismatch. Either number of angles or "
                               "pulses per angle are inconsistent. "
                               "Trying to pad with nans.")
-                N_a, N_p = data.shape
-                ds[scan, step, :N_a, :N_p] = data
-                ds[scan, step, N_a:, :N_p] = scipy.nan
-                ds[scan, step, :, N_p:] = scipy.nan
+                no_angles, no_pulses = data.shape
+                ds[scan, step, :no_angles, :no_pulses] = data
+                ds[scan, step, no_angles:, :no_pulses] = scipy.nan
+                ds[scan, step, :, no_pulses:] = scipy.nan
             sys.stderr.write("\r{0:3.2%}".format(float(step)/no_timesteps))
         sys.stderr.write("\r100.00%\n")
 
 
 def import_vacuum(args, ds):
-    (no_angles, no_pulses_per_angle) = ds.shape
     fn = args.vacuum
-    print "Importing vacuum data."
+    print("Importing vacuum data.")
     data = read_tabular_data(fn)
     if data.shape == ds.shape:
         ds[:, :] = data
@@ -123,10 +123,10 @@ def import_vacuum(args, ds):
         logging.error("Shape mismatch. Either number of angles or "
                       "pulses per angle are inconsistent. "
                       "Trying to pad with nans.")
-        N_a, N_p = data.shape
-        ds[:N_a, :N_p] = data
-        ds[N_a:, :N_p] = scipy.nan
-        ds[:, N_p:] = scipy.nan
+        no_angles, no_pulses = data.shape
+        ds[:no_angles, :no_pulses] = data
+        ds[no_angles:, :no_pulses] = scipy.nan
+        ds[:, no_pulses:] = scipy.nan
 
 
 def main():
