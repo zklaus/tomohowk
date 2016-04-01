@@ -3,10 +3,9 @@
 
 import argparse
 import h5py
-from numpy import float32
+import math
 import scipy
-from scipy import arange, pi, polyfit, polyval, tile
-import sys
+from scipy import arange, pi, polyfit, polyval
 from tools import parse_range, create_dataset
 
 
@@ -33,12 +32,13 @@ def load_phi_0(args):
 
 def unfold(phi_0):
     pr = phi_0.ravel()/pi
-    for k in range(4):
-        for i in range(len(pr)-1):
-            if pr[i+1]-pr[i]>.5:
-                pr[i+1] -= 1.
-            elif pr[i+1]-pr[i]<-.5:
-                pr[i+1] += 1.
+    for i in range(1, len(pr)):
+        d = math.fmod(pr[i] - pr[i-1], 2.)
+        if d > 0:
+            c = d if abs(d) < abs(d-2.) else d-2.
+        else:
+            c = d if abs(d) < abs(d+2.) else d+2.
+        pr[i] = pr[i-1] + c
     return pr*pi
 
 
