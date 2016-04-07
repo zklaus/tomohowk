@@ -35,7 +35,7 @@ def parse_args():
                         type=int, default=6)
     parser.add_argument("-m", "--method",
                         help="Select implementation (default: %(default)s)",
-                        choices=["cuda", "multiprocessing", "serial"], default="multiprocessing")
+                        choices=["cuda", "multiprocessing", "normal", "serial"], default="multiprocessing")
     parser.add_argument("-s", "--scans",
                         help="Select scans to treat (default: %(default)s)",
                         type=parse_range, default="all")

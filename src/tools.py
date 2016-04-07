@@ -3,6 +3,9 @@
 import argparse
 import logging
 from numpy import float32
+import scipy
+from scipy import ceil, pi, sqrt
+from scipy.interpolate import interp1d
 import sys
 
 
@@ -70,3 +73,24 @@ def create_dataset(args, h5, name, shape=None, data=None):
         ds = h5.create_dataset(name, compression="gzip", dtype=float32, data=data)
     tag_hdf5_object_with_git_version(ds)
     return ds
+
+def estimate_position_from_quadratures(eta, angles, quadratures):
+    scaled_quadratures = quadratures/sqrt(eta)
+    mean = scipy.average(scaled_quadratures, axis=1)
+    avg = interp1d(angles, mean)
+    # find the first included multiple of pi
+    q_angle_i = ceil(angles[0]/pi)
+    q_angle = q_angle_i*pi
+    q_sign = 1 if q_angle_i % 2 == 0 else -1
+    if q_angle-angles[0] < pi/2.:
+        p_angle = q_angle + pi/2.
+        p_sign = q_sign
+    else:
+        p_angle = q_angle - pi/2.
+        p_sign = -q_sign
+    q_mean = q_sign*avg(q_angle)
+    p_mean = p_sign*avg(p_angle)
+    s_max = scipy.std(scaled_quadratures, axis=1).max()
+    return q_mean, p_mean, s_max
+
+
