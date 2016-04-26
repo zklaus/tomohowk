@@ -87,7 +87,7 @@ def center_on_cos(raw_quadratures, phi0=None, omega=None, snap_omega=False):
     d_value, p_value_ks = kstest(res.residual, 'norm')
     mean_fit = res.eval(x=steps)
     offset = mean-mean_fit
-    aligned_quadratures = raw_quadratures - scipy.tile(offset, (no_pulses, 1)).T
+    aligned_quadratures = raw_quadratures - offset[:,None]
     centered_quadratures = aligned_quadratures - float(res.params["offset"])
     return (centered_quadratures,
             float(omega_param), float(res.params["phi0"]), p_value_ks)
